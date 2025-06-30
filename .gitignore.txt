@@ -1,0 +1,10 @@
+/server/build/
+/server/bin/
+/client_unity/Library/
+/client_unity/Temp/
+/client_unity/Obj/
+/client_unity/Build/
+/client_unity/Logs/
+*.user
+*.sln
+*.csproj
