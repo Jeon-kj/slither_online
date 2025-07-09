@@ -1,0 +1,22 @@
+[
+{
+  "directory": "/home/jeonkj/slither_online/server/build",
+  "command": "/usr/bin/c++    -o CMakeFiles/MyServer.dir/main.cpp.o -c /home/jeonkj/slither_online/server/main.cpp",
+  "file": "/home/jeonkj/slither_online/server/main.cpp"
+},
+{
+  "directory": "/home/jeonkj/slither_online/server/build",
+  "command": "/usr/bin/c++    -o CMakeFiles/MyServer.dir/message.cpp.o -c /home/jeonkj/slither_online/server/message.cpp",
+  "file": "/home/jeonkj/slither_online/server/message.cpp"
+},
+{
+  "directory": "/home/jeonkj/slither_online/server/build",
+  "command": "/usr/bin/c++    -o CMakeFiles/MyServer.dir/server.cpp.o -c /home/jeonkj/slither_online/server/server.cpp",
+  "file": "/home/jeonkj/slither_online/server/server.cpp"
+},
+{
+  "directory": "/home/jeonkj/slither_online/server/build",
+  "command": "/usr/bin/c++    -o CMakeFiles/MyServer.dir/utils.cpp.o -c /home/jeonkj/slither_online/server/utils.cpp",
+  "file": "/home/jeonkj/slither_online/server/utils.cpp"
+}
+]
