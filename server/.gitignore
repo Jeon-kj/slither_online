@@ -8,4 +8,4 @@
 *.user
 *.sln
 *.csproj
-server/.cache/
+.cache/
