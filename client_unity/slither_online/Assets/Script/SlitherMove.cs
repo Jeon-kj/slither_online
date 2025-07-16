@@ -1,26 +1,34 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class SlitherMove : MonoBehaviour
 {
-    public float moveSpeed = 5f;
+    public NetworkManager networkManager;
+    private Camera mainCam;
+
+    public float sendInterval = 0.05f; // 50ms 20fps
+    private float timer = 0f;
+
+    void Start()
+    {
+        mainCam = Camera.main;
+    }
 
     void Update()
     {
-        // 마우스 월드 좌표 계산
-        Vector3 mouseWorldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        mouseWorldPosition.z = 0f;
+        timer += Time.deltaTime;
+        if (timer >= sendInterval)
+        {
+            timer = 0f;
 
-        // 현재 위치
-        Vector3 currentPosition = transform.position;
+            Vector3 mouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            mouse.z = 0f;
 
-        // 방향 계산
-        Vector3 direction = (mouseWorldPosition - currentPosition).normalized;
+            Vector3 head = transform.position;
 
-        // 이동
-        transform.position += direction * moveSpeed * Time.deltaTime;
+            float angle = Mathf.Atan2(mouse.y - head.y, mouse.x - head.x);
 
-        // (선택) 방향으로 회전
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0, 0, angle);
-    }
+            networkManager.SendAngle(angle);
+        }
+    }   
 }
