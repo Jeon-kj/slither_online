@@ -24,7 +24,8 @@ public class NetworkManager : MonoBehaviour
     volatile bool isRunning = false;
     const int MaxBodyLength = 10000;
 
-    public GameObject playerPrefab; // 유니티에서 프리팹으로 연결
+    public SlitherMove slitherMove;
+    public GameObject slitherPrefab; // 유니티에서 프리팹으로 연결
     public GameObject bodyPrefab;
 
     ConcurrentQueue<(int type, string body)> recvQueue = new();
@@ -335,7 +336,8 @@ public class NetworkManager : MonoBehaviour
             {
                 Debug.Log($"[Type : First_MSG_HELL] payload : {payload}");
                 MainThreadDispatcher.Enqueue(() => {
-                    InitSlither(payload);
+                    bool flag = payload.id == playerId;
+                    InitSlither(flag, payload);
                 });
             }
         }
@@ -346,7 +348,7 @@ public class NetworkManager : MonoBehaviour
             Debug.Log($"[Type : MSG_HELL] id:{payload.id}, x:{payload.x}, y:{payload.y}");
 
             MainThreadDispatcher.Enqueue(() => {
-                InitSlither(payload);
+                InitSlither(false, payload);
             });
         }
     }
@@ -363,13 +365,36 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
-    void InitSlither(MovePayload payload)
+    void InitSlither(bool isLocalPlayer, MovePayload payload)
     {
-        GameObject otherPlayer = Instantiate(playerPrefab);
-        otherPlayer.name = $"Player_{payload.id}";
-        otherPlayer.transform.position = new Vector2(payload.x, payload.y);
-        players[payload.id].headObject = otherPlayer;
-        Debug.Log($"[Type : MSG_PLAYER_JOIN] payload.id : {payload.id}, payload.x : {payload.x}, payload.y : {payload.y}, otherPlayer : {otherPlayer}");
+        Vector2 spawnPos = new Vector2(payload.x, payload.y);
+        GameObject slither = Instantiate(slitherPrefab, spawnPos, Quaternion.identity);
+
+        Transform head = slither.transform.Find("Head");
+        Transform bodyGroup = slither.transform.Find("BodyGroup");
+
+        if (head == null || bodyGroup == null)
+        {
+            Debug.LogError("Slither prefab 구조가 잘못되었습니다. Head 또는 BodyGroup이 없습니다.");
+            return;
+        }
+
+        SlitherContext context = new SlitherContext
+        {
+            rootObject = slither,
+            headObject = head.gameObject,
+            bodyGroup = bodyGroup,
+            bodyLen = payload.length
+        };
+
+        if (isLocalPlayer)
+        {
+            slitherMove.slither = slither;
+        }
+        slither.name = $"Player_{payload.id}";
+
+        players[payload.id] = context;
+        Debug.Log($"[Type : MSG_PLAYER_JOIN] payload.id : {payload.id}, payload.x : {payload.x}, payload.y : {payload.y}, slither : {slither}");
     }
 
     void SyncSlither(MovePayload payload, SlitherContext sCtx)
@@ -384,6 +409,7 @@ public class NetworkManager : MonoBehaviour
             else pos = sCtx.headObject.transform.position;
 
             segment.transform.position = pos;
+            segment.transform.SetParent(sCtx.bodyGroup);
             sCtx.bodySegments.Add(segment);
         }
         // 길이가 줄었을 경우

@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 
 public class SlitherMove : MonoBehaviour
 {
+    public GameObject slither;
     public NetworkManager networkManager;
     private Camera mainCam;
 
@@ -24,7 +25,7 @@ public class SlitherMove : MonoBehaviour
             Vector3 mouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             mouse.z = 0f;
 
-            Vector3 head = transform.position;
+            Vector3 head = slither.transform.position;
 
             float angle = Mathf.Atan2(mouse.y - head.y, mouse.x - head.x);
 
