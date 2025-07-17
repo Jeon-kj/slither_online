@@ -211,4 +211,6 @@ void Server::disconnect_client(int fd){
             std::remove(client_fds_.begin(), client_fds_.end(), fd),
             client_fds_.end()
         );
+
+	std::cout << "Client disconnected: " << fd << std::endl;
 }

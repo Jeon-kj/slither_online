@@ -8,7 +8,7 @@ enum MessageType{
 	MSG_PLAYER_JOIN = 1,
 	MSG_PLAYER_LEFT = 2,
 	MSG_POS = 3,
-	MSG_DIR = 4,
+	MSG_ANGLE = 4,
 	MSG_CHAT = 5
 };
 
@@ -37,7 +37,7 @@ namespace message {
 
 	void handle_pos(const std::string& body);
 
-	void handle_dir(int fd, const std::string& body, ServerContext& ctx);
+	void handle_angle(int fd, const std::string& body, ServerContext& ctx);
 
 	void handle_chat(int fd, const std::string& body, ServerContext& ctx);
 

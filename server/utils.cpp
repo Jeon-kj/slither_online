@@ -52,11 +52,6 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 
 void utils::move_client(int fd, float delta_time, float speed, ServerContext& ctx){
 	ClientContext& client = ctx.client_contexts[fd];
-	float delta_angle = 0;
-	if(client.turn_dir == "a") delta_angle = 0.1f;
-    else if(client.turn_dir == "d") delta_angle = -0.1f;
-    else if(client.turn_dir == "w") delta_angle = 0;
-	client.angle += delta_angle;
 
 	float dx = std::cos(client.angle) * speed * delta_time;
     float dy = std::sin(client.angle) * speed * delta_time;

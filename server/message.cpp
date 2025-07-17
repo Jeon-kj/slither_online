@@ -29,7 +29,7 @@ bool message::extract_message(int fd, int32_t type, std::string body, ServerCont
     return true;
 }
 
-// server.cpp의 handle_client에서 호출
+// server.cpp의 handle_read에서 호출
 void message::handle_message(
 	Server& server,
 	int fd, 
@@ -51,8 +51,8 @@ void message::handle_message(
 			message::handle_pos(body);
 			break;
 
-		case MSG_DIR:
-			message::handle_dir(fd, body, ctx);
+		case MSG_ANGLE:
+			message::handle_angle(fd, body, ctx);
 			break;
 
 		case MSG_CHAT:
@@ -111,14 +111,13 @@ void message::handle_pos(const std::string& body){
 	// 클라이언트는 해당 타입의 메시지를 보내지 않음.
 }
 
-void message::handle_dir(int fd, const std::string& body, ServerContext& ctx){
-	// {"dir": "w"|"a"|"d"}
+void message::handle_angle(int fd, const std::string& body, ServerContext& ctx){
+	// {"angle": "string(float)"}
 	json j = json::parse(body);
-
-	std::string dir = j["dir"];
-
+	float angle = std::stof(body);
+	
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
-	ctx.client_contexts[fd].turn_dir = dir;
+	ctx.client_contexts[fd].angle = angle;
 }
 
 void message::handle_chat(int fd, const std::string& body, ServerContext& ctx){
@@ -154,6 +153,7 @@ void message::send_player_join(
 	}
 
 	json wrapper;
+	wrapper["id"] = ctx.client_contexts[fd].id;
 	wrapper["payloads"] = j;
 
 	std::string send_body = wrapper.dump();
