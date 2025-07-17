@@ -1,5 +1,5 @@
-/server/build/
-/server/bin/
+build/
+bin/
 /client_unity/Library/
 /client_unity/Temp/
 /client_unity/Obj/
