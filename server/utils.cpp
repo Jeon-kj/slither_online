@@ -1,4 +1,6 @@
 #include "utils.hpp"
+#include "debug.hpp"
+
 #include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
@@ -16,6 +18,7 @@ int utils::set_nonblock(int fd){
 }
 
 void utils::modify_epoll_events(int epoll_fd, int client_fd, uint32_t events) {
+	dbg("[modify_epoll_events]");
     epoll_event ev{};
     ev.events = events;
     ev.data.fd = client_fd;
@@ -26,6 +29,7 @@ void utils::modify_epoll_events(int epoll_fd, int client_fd, uint32_t events) {
 }
 
 void utils::send_queue(int fd, int32_t type, const std::string& body, ServerContext& ctx){
+	dbg("[send_queue] type : ", type, ", body : ", body);
 	std::vector<char> packet;
 
 	int32_t type_net = htonl(type);
@@ -44,13 +48,14 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 		body.end());
 
 	{
-		std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		ctx.client_contexts[fd].send_queue.push_back(packet);
 		utils::modify_epoll_events(ctx.epoll_fd, fd, EPOLLIN | EPOLLOUT);
 	}
 }
 
 void utils::move_client(int fd, float delta_time, float speed, ServerContext& ctx){
+	dbg("[move_client]");
 	ClientContext& client = ctx.client_contexts[fd];
 
 	float dx = std::cos(client.angle) * speed * delta_time;

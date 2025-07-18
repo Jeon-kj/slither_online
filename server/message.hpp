@@ -13,7 +13,7 @@ enum MessageType{
 };
 
 namespace message {
-	bool extract_message(int fd, int32_t type, std::string body, ServerContext& ctx);
+	bool extract_message(int fd, int32_t& type, std::string& body, ServerContext& ctx);
 	
 	void handle_message(
 		Server& server,

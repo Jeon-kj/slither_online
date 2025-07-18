@@ -5,10 +5,12 @@
 
 #include <cstring>
 #include <arpa/inet.h>
+#include "debug.hpp"
 
 using json = nlohmann::json;
 
-bool message::extract_message(int fd, int32_t type, std::string body, ServerContext& ctx){
+bool message::extract_message(int fd, int32_t& type, std::string& body, ServerContext& ctx){
+	dbg("[extract_message]");
 	ClientContext& client = ctx.client_contexts[fd];
 	auto& buffer = client.recv_buffer;
 	int32_t body_len;
@@ -21,6 +23,11 @@ bool message::extract_message(int fd, int32_t type, std::string body, ServerCont
 
 	memcpy(&body_len, buffer.data()+sizeof(type), sizeof(body_len));
 	body_len = ntohl(body_len);
+
+	if (body_len < 0 || body_len > 10000) {
+		std::cerr << "[extract_message] Invalid body_len: " << body_len << std::endl;
+		return false;
+	}
 
 	if(buffer.size() < header_len+body_len) return false;
 
@@ -40,22 +47,27 @@ void message::handle_message(
 	switch (type)
 	{
 		case MSG_PLAYER_JOIN:
+			dbg("[handle_message] MSG_PLAYER_JOIN");
 			message::handle_player_join(fd, body, ctx);
 			break;
 		
 		case MSG_PLAYER_LEFT:
+			dbg("[handle_message] MSG_PLAYER_LEFT");
 			message::handle_player_left(server, fd, ctx);
 			break;
 
 		case MSG_POS:
+			dbg("[handle_message] MSG_POS");
 			message::handle_pos(body);
 			break;
 
 		case MSG_ANGLE:
+			dbg("[handle_message] MSG_ANGLE");
 			message::handle_angle(fd, body, ctx);
 			break;
 
 		case MSG_CHAT:
+			dbg("[handle_message] MSG_CHAT");
 			message::handle_chat(fd, body, ctx);
 			break;
 	}
@@ -66,6 +78,7 @@ void message::handle_player_join(
 	const std::string& body, 
 	ServerContext& ctx)
 {
+	dbg("[handle_player_join]");
 	// body 안에는 아무것도 없음 (0byte)
 	// 정보를 설정해주고 id를 붙여서 다른 플레이어들에게 전송.
 	// 본인 정보와 다른 모든 플레이어들의 정보를 join한 플레이어에게 전송.
@@ -104,6 +117,7 @@ void message::handle_player_left(
 	}
 	
 	message::send_player_left(fd, j.dump(), ctx);
+	dbg("disconnect_client (handle_player_left)");
 	server.disconnect_client(fd);
 }
 
@@ -113,11 +127,13 @@ void message::handle_pos(const std::string& body){
 
 void message::handle_angle(int fd, const std::string& body, ServerContext& ctx){
 	// {"angle": "string(float)"}
+	dbg("[handle_angle]");
 	json j = json::parse(body);
 	float angle = std::stof(body);
 	
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[fd].angle = angle;
+	dbg("[handle_angle] ctx.client_contexts[fd].angle : ", ctx.client_contexts[fd].angle);
 }
 
 void message::handle_chat(int fd, const std::string& body, ServerContext& ctx){
@@ -130,9 +146,11 @@ void message::send_player_join(
 	const std::string& body, 
 	ServerContext& ctx)
 {
+	dbg("[send_player_join]");
 	{
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		for(auto client_fd : ctx.client_fds){
+			dbg("[send_player_join] client_fd : ", client_fd);
 			// fd를 제외한 모든 클라이언트들에게 전송 (얘 들어왔어요~)
 			if(client_fd == fd) continue;
 			utils::send_queue(client_fd, MSG_PLAYER_JOIN, body, ctx);
@@ -144,6 +162,7 @@ void message::send_player_join(
 	{
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		for(const auto& [fd, client] : ctx.client_contexts){
+			dbg("[send_player_join] client_id : ", client.id);
 			j.push_back({
 				{"id", client.id},
 				{"x", client.head.x},
@@ -175,10 +194,11 @@ void message::send_player_left(int fd, const std::string& body, ServerContext& c
 }
 
 void message::send_pos(int fd, ServerContext& ctx){
+	dbg("[send_pos]");
 	// 지금 현재의 위치를 전송. (즉, 움직임 처리 함수 호출 이후에 호출해야함.)
 	json j;
 	{
-		std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		ClientContext& client = ctx.client_contexts[fd];
 	
 		j["id"] = client.id;
@@ -188,9 +208,9 @@ void message::send_pos(int fd, ServerContext& ctx){
 	}
 
 	std::string body = j.dump();
-
+	dbg("[send_pos] body : ", body);
 	{
-		std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		utils::send_queue(fd, MSG_POS, body, ctx);
 	}	
 }

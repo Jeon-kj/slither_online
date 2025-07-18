@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include "debug.hpp"
 
 int main(){
 	int port = 12345;

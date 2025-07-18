@@ -1,6 +1,7 @@
 #include "server.hpp"
 #include "utils.hpp"
 #include "message.hpp"
+#include "debug.hpp"
 
 #include <iostream>
 #include <unistd.h>
@@ -24,6 +25,7 @@ Server::~Server(){
 }
 
 void Server::start(){
+	dbg("Server start");
 	setup_server_socket();
 	setup_epoll();
 	running_ = true;
@@ -31,6 +33,7 @@ void Server::start(){
 }
 
 void Server::stop(){
+	dbg("Server stop");
 	running_ = false;
 }
 
@@ -60,6 +63,7 @@ void Server::setup_epoll(){
 }
 
 void Server::accept_client(){
+	dbg("accept_client join");
 	epoll_event ev{};
 	sockaddr_in client_addr{};
 	socklen_t addr_len = sizeof(client_addr);
@@ -87,10 +91,12 @@ void Server::accept_client(){
 }
 
 void Server::handle_read(int fd){
+	dbg("handle_read join");
 	char buf[1024];
 	while(true)	{
 		ssize_t n = recv(fd, buf, sizeof(buf), 0);
 		if(n > 0){
+			dbg("[handle_read] n > 0");
 			{
 				std::lock_guard<std::mutex> lock(server_mutex_);
 				client_contexts_[fd].recv_buffer.insert(
@@ -114,18 +120,24 @@ void Server::handle_read(int fd){
 				message::handle_message(*this, fd, type, body, ctx_);
 			}
 		}
-		if(n == 0){
+		else if(n == 0){
+			dbg("[handle_read] n == 0");
 			disconnect_client(fd);
+			break;
 		}
 		else {
+			dbg("[handle_read] else, n : ", n);
 			if(errno == EAGAIN || errno == EWOULDBLOCK) break;
 
+			dbg("disconnect_client (handle_read)");
 			disconnect_client(fd);
+			break;
 		}
 	}
 }
 
 void Server::handle_write(int fd){
+	dbg("handle_write join");
 	// 안전하게 client를 찾기
 	std::lock_guard<std::mutex> lock(server_mutex_);
 	ClientContext& client = client_contexts_[fd];
@@ -139,6 +151,7 @@ void Server::handle_write(int fd){
 				break;
 			} else {
 				// 진짜 에러 발생: 연결 종료 처리
+				dbg("disconnect_client (handle_write)");
 				disconnect_client(fd);
 				break;
 			}
@@ -188,10 +201,18 @@ void Server::main_loop(){
 
 	auto game_loop = [&](){
 		while(running_){
-			std::lock_guard<std::mutex> lock(server_mutex_);
-			for(auto client_fd: client_fds_){
-				utils::move_client(client_fd, 0.02f, 1.0f, ctx_);
-				message::send_pos(client_fd, ctx_);
+			if(!client_fds_.empty()){
+				dbg("[game_loop] server_mutex_ 시도");
+				std::lock_guard<std::mutex> lock(server_mutex_);
+				dbg("[game_loop] server_mutex_ 완료");
+				for(auto client_fd: client_fds_){
+					dbg("[game_loop] client_fd:", client_fd);
+					utils::move_client(client_fd, 0.02f, 1.0f, ctx_);
+					message::send_pos(client_fd, ctx_);
+				}				
+			}
+			else{
+				dbg("[game_loop] 대기 중 - 클라이언트 없음");
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 		}
@@ -206,6 +227,8 @@ void Server::main_loop(){
 
 void Server::disconnect_client(int fd){
 	std::lock_guard<std::mutex> lock(server_mutex_);
+	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
+	close(fd);
 	client_contexts_.erase(fd);
 	client_fds_.erase(
             std::remove(client_fds_.begin(), client_fds_.end(), fd),
