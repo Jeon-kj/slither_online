@@ -75,14 +75,14 @@ void message::handle_player_join(
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		ClientContext& client = ctx.client_contexts[fd];
 		client.id = client.fd;
-		client.x = rand() % 10 - 5;
-		client.y = rand() % 10 - 5;
+		client.head.x = rand() % 10 - 5;
+		client.head.y = rand() % 10 - 5;
 		client.turn_dir = "w";
 		client.angle = M_PI / 2.0f;
 		
 		j["id"] = client.id;
-		j["x"] = client.x;
-		j["y"] = client.y;
+		j["x"] = client.head.x;
+		j["y"] = client.head.y;
 	}
 	
 	message::send_player_join(fd, j.dump(), ctx);
@@ -146,8 +146,8 @@ void message::send_player_join(
 		for(const auto& [fd, client] : ctx.client_contexts){
 			j.push_back({
 				{"id", client.id},
-				{"x", client.x},
-				{"y", client.y}
+				{"x", client.head.x},
+				{"y", client.head.y}
 			});
 		}
 	}
@@ -182,8 +182,9 @@ void message::send_pos(int fd, ServerContext& ctx){
 		ClientContext& client = ctx.client_contexts[fd];
 	
 		j["id"] = client.id;
-		j["x"] = client.x;
-		j["y"] = client.y;
+		j["x"] = client.head.x;
+		j["y"] = client.head.y;
+		j["length"] = client.body_segments.size();
 	}
 
 	std::string body = j.dump();

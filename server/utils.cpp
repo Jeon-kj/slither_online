@@ -56,6 +56,6 @@ void utils::move_client(int fd, float delta_time, float speed, ServerContext& ct
 	float dx = std::cos(client.angle) * speed * delta_time;
     float dy = std::sin(client.angle) * speed * delta_time;
 
-	client.x += dx;
-    client.y += dy;
+	client.head.x += dx;
+    client.head.y += dy;
 }
