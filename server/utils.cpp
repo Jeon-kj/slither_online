@@ -4,7 +4,6 @@
 #include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
-#include <cmath>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 
@@ -52,15 +51,4 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 		ctx.client_contexts[fd].send_queue.push_back(packet);
 		utils::modify_epoll_events(ctx.epoll_fd, fd, EPOLLIN | EPOLLOUT);
 	}
-}
-
-void utils::move_client(int fd, float delta_time, float speed, ServerContext& ctx){
-	dbg("[move_client]");
-	ClientContext& client = ctx.client_contexts[fd];
-
-	float dx = std::cos(client.angle) * speed * delta_time;
-    float dy = std::sin(client.angle) * speed * delta_time;
-
-	client.head.x += dx;
-    client.head.y += dy;
 }

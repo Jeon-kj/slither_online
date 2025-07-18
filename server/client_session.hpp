@@ -21,6 +21,7 @@ struct ClientContext{
 	// 현재는 body_segments가 서버에서 사용되지 않음
 	SlitherSegment head;
 	std::deque<SlitherSegment> body_segments;
+	int body_len;
 
 	std::deque<std::vector<char>> send_queue;
 };

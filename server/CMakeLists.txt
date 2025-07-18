@@ -5,7 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_executable(MyServer
     main.cpp
-    message.cpp
+    message_handler.cpp
+    message_sender.cpp
     server.cpp
     utils.cpp
+    slither_manager.cpp
 )

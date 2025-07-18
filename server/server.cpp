@@ -1,6 +1,8 @@
 #include "server.hpp"
 #include "utils.hpp"
-#include "message.hpp"
+#include "message_handler.hpp"
+#include "message_sender.hpp"
+#include "slither_manager.hpp"
 #include "debug.hpp"
 
 #include <iostream>
@@ -112,12 +114,12 @@ void Server::handle_read(int fd){
 				bool loop_check;
 				{
 					std::lock_guard<std::mutex> lock(server_mutex_);
-					loop_check = message::extract_message(fd, type, body, ctx_);
+					loop_check = message_handler::extract_message(fd, type, body, ctx_);
 				}
 
 				if(!loop_check) break;
 
-				message::handle_message(*this, fd, type, body, ctx_);
+				message_handler::handle_message(*this, fd, type, body, ctx_);
 			}
 		}
 		else if(n == 0){
@@ -207,8 +209,8 @@ void Server::main_loop(){
 				dbg("[game_loop] server_mutex_ 완료");
 				for(auto client_fd: client_fds_){
 					dbg("[game_loop] client_fd:", client_fd);
-					utils::move_client(client_fd, 0.02f, 1.0f, ctx_);
-					message::send_pos(client_fd, ctx_);
+					slither_manager::move_client(client_fd, 0.02f, 1.0f, ctx_);
+					message_sender::send_pos(client_fd, ctx_);
 				}				
 			}
 			else{
