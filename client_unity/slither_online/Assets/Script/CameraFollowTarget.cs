@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class CameraFollowTarget : MonoBehaviour
 {
-    public Transform target;
+    Transform target;
     public float followSpeed = 5f;
 
     void LateUpdate()
@@ -18,4 +18,6 @@ public class CameraFollowTarget : MonoBehaviour
         transform.position = Vector3.Lerp(transform.position, targetPosition, followSpeed * Time.deltaTime);
         DebugUtil.Dbg("[CameraFollowTarget] transform.position : ", transform.position);
     }
+
+    public void SetTarget(Transform targetTransform) { target = targetTransform; }
 }

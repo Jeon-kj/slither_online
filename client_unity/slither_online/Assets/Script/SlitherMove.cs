@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 
 public class SlitherMove : MonoBehaviour
 {
-    public Transform slither;
+    Transform slither;
     public NetworkManager networkManager;
     private Camera mainCam;
 
@@ -35,4 +35,6 @@ public class SlitherMove : MonoBehaviour
             }
         }        
     }   
+
+    public void SetSlither(Transform slitherTransform) { slither = slitherTransform; }
 }

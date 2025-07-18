@@ -11,9 +11,14 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
+using Slither.Protocol;
 
 public class NetworkManager : MonoBehaviour
 {
+    public GameManager gameManager;
+    public SlitherMove slitherMove;
+    public MessageHandler messageHandler;
+
     TcpClient client;
     NetworkStream stream;
 
@@ -24,54 +29,9 @@ public class NetworkManager : MonoBehaviour
     volatile bool isRunning = false;
     const int MaxBodyLength = 10000;
 
-    public GameManager gameManager;
-    public SlitherMove slitherMove;
-    public GameObject slitherPrefab; // 유니티에서 프리팹으로 연결
-    public GameObject bodyPrefab;
-
     ConcurrentQueue<(int type, string body)> recvQueue = new();
-    Dictionary<int, SlitherContext> players = new Dictionary<int, SlitherContext>();
+    
     private ReadContext readContext = new ReadContext();
-
-    private int playerId=-1;
-
-    [Serializable]
-    public struct MovePayload
-    {
-        public int id;
-        public float x;
-        public float y;
-        public int length;
-    }
-
-    [Serializable]
-    public struct MovePayloadList
-    {
-        public int id;
-        public MovePayload[] payloads;
-    }
-
-    [Serializable]
-    public struct ChatPayload
-    {
-        public int id;
-        public string msg;
-    }
-
-    [Serializable]
-    public struct PlayerLeftPayload
-    {
-        public int id;
-    }
-
-    enum MessageType
-    {
-        MSG_PLAYER_JOIN = 1,
-        MSG_PLAYER_LEFT = 2,
-        MSG_POS = 3,
-        MSG_ANGLE = 4,
-        MSG_CHAT = 5
-    };
 
     #region Unity Lifecycle
     void Start()
@@ -93,7 +53,7 @@ public class NetworkManager : MonoBehaviour
     {
         while (recvQueue.TryDequeue(out var msg))
         {
-            ProcessMessage(msg.type, msg.body); // 메인 스레드에서 처리
+            messageHandler.ProcessMessage(msg.type, msg.body); // 메인 스레드에서 처리
         }
     }
 
@@ -139,7 +99,7 @@ public class NetworkManager : MonoBehaviour
     public void SendPlayerLeft()
     {
         // 서버에게 자신의 id를 전송
-        var payload = playerId;
+        var payload = gameManager.GetLocalPlayerId();
         byte[] body = Encoding.UTF8.GetBytes(payload.ToString());
         int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_PLAYER_LEFT));
         byte[] headerType = BitConverter.GetBytes(type);
@@ -274,183 +234,6 @@ public class NetworkManager : MonoBehaviour
             Debug.LogError($"[ReadMessage Exception] {ex}");
             return false;
         }
-    }
-
-    bool ProcessMessage(int type, string body)
-    {
-        DebugUtil.Dbg("[ProcessMessage] type : ", type, ", body : ", body);
-        // 메시지 처리 ...
-        switch ((MessageType)type)
-        {
-            case MessageType.MSG_PLAYER_JOIN:
-                HandlePlayerJoin(body);
-                break;
-            case MessageType.MSG_PLAYER_LEFT:
-                HandlePlayerLeft(body);
-                break;
-            case MessageType.MSG_POS:
-                HandlePos(body);              
-                break;
-            case MessageType.MSG_ANGLE:
-                break;
-            case MessageType.MSG_CHAT:
-                HandleChat(body);                
-                break;
-        }
-        return true;
-    }
-
-    void HandlePos(string body)
-    {
-        var payload = JsonUtility.FromJson<MovePayload>(body);
-        //Debug.Log($"[Type : MSG_POS] id:{payload.id}, x:{payload.x}, y:{payload.y}, length:{payload.length}");
-
-        if (players.ContainsKey(payload.id))
-        {
-            SlitherContext sCtx = players[payload.id];
-            sCtx.bodyLen = payload.length;
-            MainThreadDispatcher.Enqueue(() => {
-                SyncSlither(payload, sCtx);
-            });
-        }
-    }
-
-    void HandleChat(string body)    // [수정 필요] 채팅창 구현
-    {
-        //{"id":id, "msg":msg}
-        var payload = JsonUtility.FromJson<ChatPayload>(body);
-        Debug.Log($"[Player_{payload.id}] : {payload.msg}");
-    }
-
-    void HandlePlayerJoin(string body) 
-    {
-        DebugUtil.Dbg("[HandlePlayerJoin] body : ", body);
-        // 모든 플레이어들의 데이터를 전달받음.
-        // id,x,y 값이 든 데이터를 받아 오브젝트를 생성하고 현재 players에 정보 저장.
-        // 처음 받는다면, 모든 플레이어들 생성.
-
-        // 새로 입장하여 모든 플레이어에 대한 정보를 받는 경우
-        // 이 경우는 slither의 body segments는 어떻게 업데이트 하지?
-        // 왜냐하면, 서버에서는 head에 대한 정보밖에 주지 않으니까.
-        // 초기에는 그냥 머리에 대한 정보만 줘서 시간이 지날수록 업데이트 되도록 함
-        if (body.TrimStart().StartsWith("{\"id\""))
-        {
-            DebugUtil.Dbg("[HandlePlayerJoin] first if");
-            var payloadList = JsonUtility.FromJson<MovePayloadList>(body);
-            playerId = payloadList.id;
-
-            foreach (var payload in payloadList.payloads)
-            {
-                DebugUtil.Dbg("[HandlePlayerJoin] payload : ", payload);
-                MainThreadDispatcher.Enqueue(() => {
-                    Debug.Log($"[MainThreadDispatcher] MainThreadDispatcher");
-                    bool flag = payload.id == playerId;
-                    InitSlither(flag, payload);
-                });
-            }
-        }
-        // 새로운 플레이어에 대한 정보를 받는 경우
-        else
-        {
-            DebugUtil.Dbg("[HandlePlayerJoin] else");
-            var payload = JsonUtility.FromJson<MovePayload>(body);
-            Debug.Log($"[Type : MSG_HELL] id:{payload.id}, x:{payload.x}, y:{payload.y}");
-
-            MainThreadDispatcher.Enqueue(() => {
-                InitSlither(false, payload);
-            });
-        }
-    }
-
-    void HandlePlayerLeft(string body)
-    {
-        var payload = JsonUtility.FromJson<PlayerLeftPayload>(body);
-        if (players.TryGetValue(payload.id, out SlitherContext sCtx))
-        {
-            MainThreadDispatcher.Enqueue(() => {
-                DelSCtx(payload.id, sCtx);
-                
-            });
-        }
-    }
-
-    void InitSlither(bool isLocalPlayer, MovePayload payload)
-    {
-        DebugUtil.Dbg("[InitSlither] isLocalPlayer : ", isLocalPlayer);
-        Vector2 spawnPos = new Vector2(payload.x, payload.y);
-        GameObject slither = Instantiate(slitherPrefab, spawnPos, Quaternion.identity);
-
-        Transform head = slither.transform.Find("Head");
-        Transform bodyGroup = slither.transform.Find("BodyGroup");
-        DebugUtil.Dbg("[InitSlither] 오브젝트 생성  완료");
-        if (head == null || bodyGroup == null)
-        {
-            Debug.LogError("Slither prefab 구조가 잘못되었습니다. Head 또는 BodyGroup이 없습니다.");
-            return;
-        }
-        DebugUtil.Dbg("[InitSlither] SlitherContext 생성 직전");
-        SlitherContext context = new SlitherContext
-        {
-            rootObject = slither,
-            headObject = head.gameObject,
-            bodyGroup = bodyGroup,
-            bodyLen = payload.length
-        };
-        DebugUtil.Dbg("[InitSlither] SlitherContext 생성 완료");
-        if (isLocalPlayer)
-        {
-            gameManager.InitPlayer(slither);
-        }
-        slither.name = $"Player_{payload.id}";
-
-        players[payload.id] = context;
-        Debug.Log($"[Type : MSG_PLAYER_JOIN] payload.id : {payload.id}, payload.x : {payload.x}, payload.y : {payload.y}, slither : {slither}");
-    }
-
-    void SyncSlither(MovePayload payload, SlitherContext sCtx)
-    {
-        // 길이가 늘었을 경우
-        while (sCtx.bodySegments.Count < sCtx.bodyLen)
-        {
-            var segment = Instantiate(bodyPrefab);
-            Vector2 pos;
-            if (sCtx.bodySegments.Count > 0)
-                pos = sCtx.bodySegments[sCtx.bodySegments.Count - 1].transform.position;
-            else pos = sCtx.headObject.transform.position;
-
-            segment.transform.position = pos;
-            segment.transform.SetParent(sCtx.bodyGroup);
-            sCtx.bodySegments.Add(segment);
-        }
-        // 길이가 줄었을 경우
-        while (sCtx.bodySegments.Count > sCtx.bodyLen)
-        {
-            var lastSegment = sCtx.bodySegments[sCtx.bodySegments.Count - 1];
-            GameObject.Destroy(lastSegment);
-            sCtx.bodySegments.RemoveAt(sCtx.bodySegments.Count - 1);
-        }
-        // 꼬리(body) 위치 갱신
-        for (int i = sCtx.bodySegments.Count - 1; i > 0; i--)
-        {
-            sCtx.bodySegments[i].transform.position = sCtx.bodySegments[i - 1].transform.position;
-        }
-        if (sCtx.bodySegments.Count > 0)
-        {
-            sCtx.bodySegments[0].transform.position = sCtx.headObject.transform.position;
-        }
-        // head 위치 갱신
-        sCtx.headObject.transform.position = new Vector2(payload.x, payload.y);
-        sCtx.rootObject.transform.position = new Vector2(payload.x, payload.y);
-    }
-
-    void DelSCtx(int id, SlitherContext sCtx)
-    {
-        Destroy(sCtx.headObject);
-        foreach (var segment in sCtx.bodySegments)
-        {
-            Destroy(segment);
-        }
-        players.Remove(id);
     }
     #endregion
 
