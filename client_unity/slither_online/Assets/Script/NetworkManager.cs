@@ -24,6 +24,7 @@ public class NetworkManager : MonoBehaviour
     volatile bool isRunning = false;
     const int MaxBodyLength = 10000;
 
+    public GameManager gameManager;
     public SlitherMove slitherMove;
     public GameObject slitherPrefab; // 유니티에서 프리팹으로 연결
     public GameObject bodyPrefab;
@@ -77,6 +78,8 @@ public class NetworkManager : MonoBehaviour
     {
         if (TryConnect())
         {
+            DebugUtil.Dbg("[Start] tryConnect()");
+
             Thread thread = new Thread(RunReceiver);
             thread.IsBackground = true;
             thread.Start();
@@ -123,6 +126,7 @@ public class NetworkManager : MonoBehaviour
     
     public void SendPlayerJoin()
     {
+        DebugUtil.Dbg("[SendPlayerJoin()]");
         int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_PLAYER_JOIN));
         byte[] headerType = BitConverter.GetBytes(type);
         int len = IPAddress.HostToNetworkOrder(0);
@@ -223,7 +227,6 @@ public class NetworkManager : MonoBehaviour
                     readContext.HeaderBytesRead += read;
                 }
 
-                type = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(readContext.HeaderBuffer, 0));
                 int length = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(readContext.HeaderBuffer, 4));
 
                 if (length < 0 || length > MaxBodyLength) // 너무 큰 값 방지
@@ -260,6 +263,7 @@ public class NetworkManager : MonoBehaviour
                     readContext.BodyBytesRead += read;
                 }
 
+                type = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(readContext.HeaderBuffer, 0));
                 body = Encoding.UTF8.GetString(readContext.BodyBuffer);
                 readContext.InitReadContext();
                 return true;
@@ -274,6 +278,7 @@ public class NetworkManager : MonoBehaviour
 
     bool ProcessMessage(int type, string body)
     {
+        DebugUtil.Dbg("[ProcessMessage] type : ", type, ", body : ", body);
         // 메시지 처리 ...
         switch ((MessageType)type)
         {
@@ -319,6 +324,7 @@ public class NetworkManager : MonoBehaviour
 
     void HandlePlayerJoin(string body) 
     {
+        DebugUtil.Dbg("[HandlePlayerJoin] body : ", body);
         // 모든 플레이어들의 데이터를 전달받음.
         // id,x,y 값이 든 데이터를 받아 오브젝트를 생성하고 현재 players에 정보 저장.
         // 처음 받는다면, 모든 플레이어들 생성.
@@ -329,13 +335,15 @@ public class NetworkManager : MonoBehaviour
         // 초기에는 그냥 머리에 대한 정보만 줘서 시간이 지날수록 업데이트 되도록 함
         if (body.TrimStart().StartsWith("{\"id\""))
         {
+            DebugUtil.Dbg("[HandlePlayerJoin] first if");
             var payloadList = JsonUtility.FromJson<MovePayloadList>(body);
             playerId = payloadList.id;
 
             foreach (var payload in payloadList.payloads)
             {
-                Debug.Log($"[Type : First_MSG_HELL] payload : {payload}");
+                DebugUtil.Dbg("[HandlePlayerJoin] payload : ", payload);
                 MainThreadDispatcher.Enqueue(() => {
+                    Debug.Log($"[MainThreadDispatcher] MainThreadDispatcher");
                     bool flag = payload.id == playerId;
                     InitSlither(flag, payload);
                 });
@@ -344,6 +352,7 @@ public class NetworkManager : MonoBehaviour
         // 새로운 플레이어에 대한 정보를 받는 경우
         else
         {
+            DebugUtil.Dbg("[HandlePlayerJoin] else");
             var payload = JsonUtility.FromJson<MovePayload>(body);
             Debug.Log($"[Type : MSG_HELL] id:{payload.id}, x:{payload.x}, y:{payload.y}");
 
@@ -367,18 +376,19 @@ public class NetworkManager : MonoBehaviour
 
     void InitSlither(bool isLocalPlayer, MovePayload payload)
     {
+        DebugUtil.Dbg("[InitSlither] isLocalPlayer : ", isLocalPlayer);
         Vector2 spawnPos = new Vector2(payload.x, payload.y);
         GameObject slither = Instantiate(slitherPrefab, spawnPos, Quaternion.identity);
 
         Transform head = slither.transform.Find("Head");
         Transform bodyGroup = slither.transform.Find("BodyGroup");
-
+        DebugUtil.Dbg("[InitSlither] 오브젝트 생성  완료");
         if (head == null || bodyGroup == null)
         {
             Debug.LogError("Slither prefab 구조가 잘못되었습니다. Head 또는 BodyGroup이 없습니다.");
             return;
         }
-
+        DebugUtil.Dbg("[InitSlither] SlitherContext 생성 직전");
         SlitherContext context = new SlitherContext
         {
             rootObject = slither,
@@ -386,10 +396,10 @@ public class NetworkManager : MonoBehaviour
             bodyGroup = bodyGroup,
             bodyLen = payload.length
         };
-
+        DebugUtil.Dbg("[InitSlither] SlitherContext 생성 완료");
         if (isLocalPlayer)
         {
-            slitherMove.slither = slither;
+            gameManager.InitPlayer(slither);
         }
         slither.name = $"Player_{payload.id}";
 
@@ -430,6 +440,7 @@ public class NetworkManager : MonoBehaviour
         }
         // head 위치 갱신
         sCtx.headObject.transform.position = new Vector2(payload.x, payload.y);
+        sCtx.rootObject.transform.position = new Vector2(payload.x, payload.y);
     }
 
     void DelSCtx(int id, SlitherContext sCtx)
