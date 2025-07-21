@@ -7,6 +7,8 @@
 struct SlitherSegment{
 	float x;
 	float y;
+
+	SlitherSegment(float x_ = 0, float y_ = 0) : x(x_), y(y_) {}
 };
 
 struct ClientContext{

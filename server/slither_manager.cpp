@@ -26,3 +26,23 @@ void slither_manager::move_client(int fd, float delta_time, float speed, ServerC
 	client.head.x += dx;
     client.head.y += dy;
 }
+
+void slither_manager::grow(int fd, ServerContext& sCtx){
+	ClientContext& cCtx = sCtx.client_contexts[fd];
+
+	while(cCtx.body_segments.size() < cCtx.body_len){
+		cCtx.body_segments.emplace_back(cCtx.head.x, cCtx.head.y);
+	}
+}
+
+void slither_manager::trim(int fd, ServerContext& sCtx){
+	ClientContext& cCtx = sCtx.client_contexts[fd];
+
+	while(cCtx.body_segments.size() > cCtx.body_len){
+		cCtx.body_segments.pop_back();
+	}
+}
+
+void slither_manager::update_body_len(int fd, ServerContext &ctx){
+	ctx.client_contexts[fd].body_len = ctx.client_contexts[fd].body_segments.size();
+}
