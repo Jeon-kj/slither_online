@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+#include <random>
 
 void utils::error_handling(const std::string& msg){
 	std::cout << "[Error] : " << msg << std::endl;
@@ -51,4 +52,11 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 		ctx.client_contexts[fd].send_queue.push_back(packet);
 		utils::modify_epoll_events(ctx.epoll_fd, fd, EPOLLIN | EPOLLOUT);
 	}
+}
+
+float utils::random_float(float min, float max) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dist(min, max);
+    return dist(gen);
 }

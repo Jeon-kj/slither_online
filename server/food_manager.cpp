@@ -1,0 +1,71 @@
+#include "food_manager.hpp"
+#include "server.hpp"
+#include "utils.hpp"
+#include "game_config.hpp"
+#include "message_sender.hpp"
+
+#include <random>
+
+void FoodManager::spawn_food_random(ServerContext& ctx){
+	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
+
+	std::unordered_map<int, FoodContext> new_foods;
+	while(food_contexts.size()<GameConfig::INIT_FOOD_COUNT){
+		float x = utils::random_float(-GameConfig::MAP_WIDTH/2, GameConfig::MAP_WIDTH/2);
+		float y = utils::random_float(-GameConfig::MAP_HEIGHT/2, GameConfig::MAP_HEIGHT/2);
+
+		FoodContext food(x, y);
+		int usable_id = pop_usable_id(ctx);
+		new_foods[usable_id] = food;
+		food_contexts[usable_id] = food;
+	}
+	message_sender::send_food_spawn(new_foods, ctx);
+}
+
+void FoodManager::spawn_food_on_death(int dead_fd, ServerContext& ctx){
+	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
+	ClientContext& dead_client = ctx.client_contexts[dead_fd];
+
+	std::unordered_map<int, FoodContext> new_foods;
+	while(new_foods.size() < dead_client.body_len+1){
+		float x;
+		float y;
+		if(new_foods.size() == 0){
+			x = dead_client.head.x;
+			y = dead_client.head.y;
+		}
+		else{
+			SlitherSegment dead_body = dead_client.body_segments.back();
+			dead_client.body_segments.pop_back();
+			x = dead_body.x;
+			y = dead_body.y;
+		}
+		
+		FoodContext food(x, y);
+		int usable_id = pop_usable_id(ctx);
+		new_foods[usable_id] = food;
+		food_contexts[usable_id] = food;
+	}
+
+	message_sender::send_food_spawn(new_foods, ctx);
+}
+
+void FoodManager::del_food(int food_id, ServerContext &ctx){
+	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
+	food_contexts.erase(food_id);
+	push_usable_id(food_id, ctx);
+
+	message_sender::send_food_remove(food_id, ctx);
+}
+
+int FoodManager::pop_usable_id(ServerContext &ctx){
+	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
+	int food_id = reusable_ids.front();
+	reusable_ids.pop();
+	return food_id;
+}
+
+void FoodManager::push_usable_id(int food_id, ServerContext &ctx){
+	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
+	reusable_ids.push(food_id);
+}

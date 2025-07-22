@@ -1,5 +1,6 @@
 #pragma once
 #include "client_session.hpp"
+#include "food_manager.hpp"
 
 #include <unordered_map>
 #include <vector>
@@ -10,6 +11,7 @@ struct ServerContext {
     std::vector<int>& client_fds;
     std::mutex& server_mutex;
 	int& epoll_fd;
+	FoodManager& food_manager;
 };
 
 class Server {
@@ -29,11 +31,13 @@ private:
 	std::unordered_map<int, ClientContext> client_contexts_;
 	std::vector<int> client_fds_;
 	std::mutex server_mutex_;
+	FoodManager food_manager_;
 	ServerContext ctx_ {
 		client_contexts_,
 		client_fds_,
 		server_mutex_,
-		epoll_fd_	
+		epoll_fd_,
+		food_manager_
 	};
 
 	void setup_server_socket();

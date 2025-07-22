@@ -87,3 +87,37 @@ void message_sender::send_chat(int fd, const std::string& body, ServerContext& c
 		utils::send_queue(client_fd, MSG_CHAT, body, ctx);
 	}
 }
+
+void message_sender::send_food_spawn(std::unordered_map<int, FoodContext>& new_foods, ServerContext& ctx){
+	json j = json::array();;
+	for(const auto& [id, food] : new_foods){
+		j.push_back({
+			{"id", food.id},
+			{"x", food.x},
+			{"y", food.y}
+		});
+	}
+
+	json wrapper;
+	wrapper["payloads"] = j;
+
+	std::string send_body = wrapper.dump();
+
+	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	for(int fd : ctx.client_fds)
+	{		
+		utils::send_queue(fd, MSG_FOOD_SPAWN, send_body, ctx);
+	}
+}
+
+void message_sender::send_food_remove(int food_id, ServerContext& ctx){
+	json j;
+	j["id"] = food_id;
+	std::string send_body = j.dump();
+	
+	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	for(int fd : ctx.client_fds)
+	{		
+		utils::send_queue(fd, MSG_FOOD_SPAWN, send_body, ctx);
+	}	
+}
