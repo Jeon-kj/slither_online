@@ -6,6 +6,7 @@ using Slither.Protocol;
 public class MessageHandler : MonoBehaviour
 {
     public SlitherManager slitherManager;
+    public FoodManager foodManager;
     public GameManager gameManager;
 
     public bool ProcessMessage(int type, string body)
@@ -27,6 +28,9 @@ public class MessageHandler : MonoBehaviour
                 break;
             case MessageType.MSG_CHAT:
                 HandleChat(body);
+                break;
+            case MessageType.MSG_FOOD_SPAWN:
+                HandleFoodSpawn(body); 
                 break;
         }
         return true;
@@ -103,5 +107,32 @@ public class MessageHandler : MonoBehaviour
                 slitherManager.DelSCtx(payload.id, sCtx);
             });
         }
+    }
+
+    public void HandleFoodSpawn(string body)
+    {
+        DebugUtil.Dbg("[HandleFoodSpawn]");
+        var payloadList = JsonUtility.FromJson<FoodSpawnPayloadList>(body);
+
+        foreach (var payload in payloadList.payloads)
+        {
+            DebugUtil.Dbg("[HandleFoodSpawn] payload : ", payload);
+            MainThreadDispatcher.Enqueue(() => {
+                Debug.Log($"[HandleFoodSpawn] MainThreadDispatcher");
+                foodManager.ApplyFoodSpawn(payload);
+            });
+        }
+    }
+
+    public void HandleFoodRemove(string body)
+    {
+        DebugUtil.Dbg("[HandleFoodRemove]");
+        var payload = JsonUtility.FromJson<FoodRemovePayload>(body);
+
+        DebugUtil.Dbg("[HandleFoodRemove] payload : ", payload);
+        MainThreadDispatcher.Enqueue(() => {
+            Debug.Log($"[HandleFoodRemove] MainThreadDispatcher");
+            foodManager.ApplyFoodRemove(payload);
+        });
     }
 }

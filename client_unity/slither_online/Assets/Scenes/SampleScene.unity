@@ -119,53 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &408327204
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 408327206}
-  - component: {fileID: 408327205}
-  m_Layer: 0
-  m_Name: MoveManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &408327205
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 408327204}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4598d7d5f915b847aa48c16404353f4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  slither: {fileID: 2615633219584272060, guid: dbd93546897a465469b9737a73d95541, type: 3}
-  networkManager: {fileID: 809983123}
-  sendInterval: 0.05
---- !u!4 &408327206
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 408327204}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.0456048, y: 6.8712196, z: -0.48236108}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &519368045
 GameObject:
   m_ObjectHideFlags: 0
@@ -195,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53dde51b6e74bab40b267554fe4bbdc4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  slitherMove: {fileID: 408327205}
+  slitherMove: {fileID: 1368696592}
   cameraFollow: {fileID: 519420033}
 --- !u!4 &519368047
 Transform:
@@ -362,7 +315,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dadfc5a3e36ba4241b6ee3738e0ff5f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 0}
   followSpeed: 5
 --- !u!1 &619394800
 GameObject:
@@ -478,9 +430,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameManager: {fileID: 519368046}
-  slitherMove: {fileID: 408327205}
-  slitherPrefab: {fileID: 3730468932768853464, guid: dbd93546897a465469b9737a73d95541, type: 3}
-  bodyPrefab: {fileID: 4896753545378732423, guid: ea3e3ba8063efba4bb2b283dd5a51815, type: 3}
+  slitherMove: {fileID: 1368696592}
+  messageHandler: {fileID: 1963038918}
 --- !u!4 &809983124
 Transform:
   m_ObjectHideFlags: 0
@@ -605,6 +556,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1180243424
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1180243426}
+  - component: {fileID: 1180243425}
+  m_Layer: 0
+  m_Name: SlitherManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1180243425
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1180243424}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10de9572faf1e0844996b9171613f7ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gameManager: {fileID: 519368046}
+  slitherPrefab: {fileID: 3730468932768853464, guid: dbd93546897a465469b9737a73d95541, type: 3}
+  bodyPrefab: {fileID: 4896753545378732423, guid: ea3e3ba8063efba4bb2b283dd5a51815, type: 3}
+--- !u!4 &1180243426
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1180243424}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.2397612, y: -1.7775277, z: 0.65816444}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1249694019
 GameObject:
   m_ObjectHideFlags: 0
@@ -649,6 +647,98 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1368696591
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1368696593}
+  - component: {fileID: 1368696592}
+  m_Layer: 0
+  m_Name: SlitherMove
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1368696592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1368696591}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4598d7d5f915b847aa48c16404353f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  networkManager: {fileID: 809983123}
+  sendInterval: 0.05
+--- !u!4 &1368696593
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1368696591}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.2397612, y: -1.7775277, z: 0.65816444}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1963038917
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1963038919}
+  - component: {fileID: 1963038918}
+  m_Layer: 0
+  m_Name: MessageHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1963038918
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1963038917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c0a2a65007fd094197af8d70f4dfb3f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  slitherManager: {fileID: 1180243425}
+  gameManager: {fileID: 519368046}
+--- !u!4 &1963038919
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1963038917}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.2397612, y: -1.7775277, z: 0.65816444}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -657,6 +747,8 @@ SceneRoots:
   - {fileID: 619394802}
   - {fileID: 878210685}
   - {fileID: 809983124}
-  - {fileID: 408327206}
   - {fileID: 519368047}
   - {fileID: 1249694021}
+  - {fileID: 1180243426}
+  - {fileID: 1963038919}
+  - {fileID: 1368696593}

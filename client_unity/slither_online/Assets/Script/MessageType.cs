@@ -9,7 +9,7 @@ namespace Slither.Protocol
         MSG_CHAT = 5,
         MSG_HIT = 6,
         MSG_EAT = 7,
-        MSG_FOOD_POS = 8
+        MSG_FOOD_SPAWN = 8,
+        MSG_FOOD_REMOVE = 9
     }
-
 }

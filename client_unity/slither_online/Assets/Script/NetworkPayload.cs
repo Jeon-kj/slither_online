@@ -52,4 +52,24 @@ namespace Slither.Protocol
         public float foodX;
         public float foodY;
     }
+
+    [Serializable]
+    public struct  FoodSpawnPayload
+    {
+        public int id;
+        public float x;
+        public float y;
+    }
+
+    [Serializable]
+    public struct FoodSpawnPayloadList
+    {
+        public FoodSpawnPayload[] payloads;
+    }
+
+    [Serializable]
+    public struct FoodRemovePayload
+    {
+        public int id;
+    }
 }
