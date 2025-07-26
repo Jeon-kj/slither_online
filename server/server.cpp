@@ -13,8 +13,9 @@
 #include <algorithm>
 #include <thread>
 
-Server::Server(int port){
-	port_ = port;
+Server::Server(int port, ServerContext& ctx)
+	: port_(port), ctx_(ctx)
+{
 	server_fd_ = -1;
 	epoll_fd_ = -1;
 	running_ = false;
@@ -81,12 +82,12 @@ void Server::accept_client(){
 	epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &ev);
 
 	{
-		std::lock_guard<std::mutex> lock(server_mutex_);
-		client_contexts_.emplace(
+		std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+		ctx_.client_contexts.emplace(
 			client_fd,
 			ClientContext{client_fd}
 		);
-		client_fds_.push_back(client_fd);
+		ctx_.client_fds.push_back(client_fd);
 	}
 	
 	std::cout << "Client connected: " << client_fd << std::endl;
@@ -100,9 +101,9 @@ void Server::handle_read(int fd){
 		if(n > 0){
 			dbg("[handle_read] n > 0");
 			{
-				std::lock_guard<std::mutex> lock(server_mutex_);
-				client_contexts_[fd].recv_buffer.insert(
-					client_contexts_[fd].recv_buffer.end(), 
+				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+				ctx_.client_contexts[fd].recv_buffer.insert(
+					ctx_.client_contexts[fd].recv_buffer.end(), 
 					buf, 
 					buf+n
 				);
@@ -113,7 +114,7 @@ void Server::handle_read(int fd){
 			while(true) {
 				bool loop_check;
 				{
-					std::lock_guard<std::mutex> lock(server_mutex_);
+					std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 					loop_check = message_handler::extract_message(fd, type, body, ctx_);
 				}
 
@@ -141,8 +142,8 @@ void Server::handle_read(int fd){
 void Server::handle_write(int fd){
 	dbg("handle_write join");
 	// 안전하게 client를 찾기
-	std::lock_guard<std::mutex> lock(server_mutex_);
-	ClientContext& client = client_contexts_[fd];
+	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+	ClientContext& client = ctx_.client_contexts[fd];
 
 	while (!client.send_queue.empty()) {
 		auto& msg = client.send_queue.front();
@@ -203,11 +204,11 @@ void Server::main_loop(){
 
 	auto game_loop = [&](){
 		while(running_){
-			if(!client_fds_.empty()){
+			if(!ctx_.client_fds.empty()){
 				dbg("[game_loop] server_mutex_ 시도");
-				std::lock_guard<std::mutex> lock(server_mutex_);
+				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 				dbg("[game_loop] server_mutex_ 완료");
-				for(auto client_fd: client_fds_){
+				for(auto client_fd: ctx_.client_fds){
 					dbg("[game_loop] client_fd:", client_fd);
 					slither_manager::move_client(client_fd, 0.02f, 1.0f, ctx_);
 					message_sender::send_pos(client_fd, ctx_);
@@ -228,13 +229,13 @@ void Server::main_loop(){
 }
 
 void Server::disconnect_client(int fd){
-	std::lock_guard<std::mutex> lock(server_mutex_);
+	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
 	close(fd);
-	client_contexts_.erase(fd);
-	client_fds_.erase(
-            std::remove(client_fds_.begin(), client_fds_.end(), fd),
-            client_fds_.end()
+	ctx_.client_contexts.erase(fd);
+	ctx_.client_fds.erase(
+            std::remove(ctx_.client_fds.begin(), ctx_.client_fds.end(), fd),
+            ctx_.client_fds.end()
         );
 
 	std::cout << "Client disconnected: " << fd << std::endl;

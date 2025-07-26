@@ -6,17 +6,25 @@
 #include <vector>
 #include <mutex>
 
+class Server;
+
 struct ServerContext {
-    std::unordered_map<int, ClientContext>& client_contexts;
-    std::vector<int>& client_fds;
-    std::mutex& server_mutex;
-	int& epoll_fd;
-	FoodManager& food_manager;
+public:
+    void set_server(Server* server) { server_ = server; }
+    Server* server() const { return server_; }
+
+    std::unordered_map<int, ClientContext> client_contexts;
+    std::vector<int> client_fds;
+    std::mutex server_mutex;
+    FoodManager food_manager;
+
+private:
+    Server* server_ = nullptr;
 };
 
 class Server {
 public:
-	Server(int port);
+	Server(int port, ServerContext& ctx);
 	~Server();
 	void start();
 	void stop();	
@@ -28,20 +36,12 @@ private:
 	int server_fd_;
 	int epoll_fd_;
 	bool running_;
-	std::unordered_map<int, ClientContext> client_contexts_;
-	std::vector<int> client_fds_;
-	std::mutex server_mutex_;
-	FoodManager food_manager_;
-	ServerContext ctx_ {
-		client_contexts_,
-		client_fds_,
-		server_mutex_,
-		epoll_fd_,
-		food_manager_
-	};
+
+	ServerContext& ctx_;
 
 	void setup_server_socket();
 	void setup_epoll();
+	int get_epoll_fd() const {return epoll_fd_;}
 	void accept_client();
 	void handle_read(int fd);
 	void handle_write(int fd);

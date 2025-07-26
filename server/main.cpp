@@ -3,7 +3,9 @@
 
 int main(){
 	int port = 12345;
-	Server server(port);
+	ServerContext ctx;
+	Server server(port, ctx);
+	ctx.set_server(&server);
 	server.start();
 	
 	return 0;
