@@ -19,10 +19,36 @@ namespace Slither.Protocol
     }
 
     [Serializable]
+    public struct PlayerIdPayload
+    {
+        public int id;
+        public PlayerIdPayload(int id)
+        {
+            this.id = id;
+        }
+    }
+
+    [Serializable]
+    public struct AnglePayload
+    {
+        public float angle;
+        public AnglePayload(float angle)
+        {
+            this.angle = angle;
+        }
+    }
+
+    [Serializable]
     public struct ChatPayload
     {
         public int id;
         public string msg;
+
+        public ChatPayload(int id, string msg)
+        {
+            this .id = id;
+            this .msg = msg;
+        }
     }
 
     [Serializable]

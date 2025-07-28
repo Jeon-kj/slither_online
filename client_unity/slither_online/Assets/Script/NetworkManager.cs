@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
 using Slither.Protocol;
+using Unity.VisualScripting;
 
 public class NetworkManager : MonoBehaviour
 {
@@ -99,8 +100,12 @@ public class NetworkManager : MonoBehaviour
     public void SendPlayerLeft()
     {
         // 서버에게 자신의 id를 전송
-        var payload = gameManager.GetLocalPlayerId();
-        byte[] body = Encoding.UTF8.GetBytes(payload.ToString());
+        var id = gameManager.GetLocalPlayerId();
+
+        PlayerIdPayload payload = new PlayerIdPayload(id);
+        string json = JsonUtility.ToJson(payload);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+
         int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_PLAYER_LEFT));
         byte[] headerType = BitConverter.GetBytes(type);
         int len = IPAddress.HostToNetworkOrder(body.Length);
@@ -116,8 +121,10 @@ public class NetworkManager : MonoBehaviour
         if (!connected || stream == null || !stream.CanWrite)
             return;
 
-        var payload = angle;
-        byte[] body = Encoding.UTF8.GetBytes(payload.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        AnglePayload payload = new AnglePayload(angle);
+        string json = JsonUtility.ToJson(payload);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+
         int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_ANGLE));
         byte[] headerType = BitConverter.GetBytes(type);
         int len = IPAddress.HostToNetworkOrder(body.Length);
@@ -130,7 +137,12 @@ public class NetworkManager : MonoBehaviour
 
     void SendChat(string msg)   
     {
-        byte[] body = Encoding.UTF8.GetBytes(msg);  // byte[](바이트배열)로 직렬화 해서 전송해야 함.
+        int id = gameManager.GetLocalPlayerId();
+
+        ChatPayload payload = new ChatPayload(id, msg);
+        string json = JsonUtility.ToJson(payload);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+
         int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_CHAT));
         byte[] headerType = BitConverter.GetBytes(type);
         int len = IPAddress.HostToNetworkOrder(body.Length);
