@@ -1,7 +1,11 @@
 #include "slither_manager.hpp"
 #include "debug.hpp"
+#include "json.hpp"
+#include "message_sender.hpp"
 
 #include <cmath>
+
+using json = nlohmann::json;
 
 void slither_manager::move_client(int fd, float delta_time, float speed, ServerContext& ctx){
 	dbg("[move_client]");
@@ -45,4 +49,20 @@ void slither_manager::trim(int fd, ServerContext& sCtx){
 
 void slither_manager::update_body_len(int fd, ServerContext &ctx){
 	ctx.client_contexts[fd].body_len = ctx.client_contexts[fd].body_segments.size();
+}
+
+void slither_manager::kill_slither(int target_id, ServerContext& ctx){
+	int target_fd = ctx.client_contexts[target_id].fd;
+	// Slither 위치에 먹이 생성 + 먹이 생성 전송
+	ctx.food_manager.spawn_food_on_death(target_fd, ctx);
+	// Slither 소유 client 연결 종료
+	ctx.server()->disconnect_client(target_fd);
+	// 사용자들에게 Slither 제거 메시지 전송
+	json j;
+	{
+		std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		j["id"]=target_id;
+	}
+
+	message_sender::send_player_left(target_fd, j.dump(), ctx);
 }

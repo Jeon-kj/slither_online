@@ -3,8 +3,11 @@
 #include "json.hpp"
 #include "message_type.hpp"
 #include "message_sender.hpp"
+#include "vector2.hpp"
+#include "slither_manager.hpp"
 
 #include <arpa/inet.h>
+#include <string>
 
 using json = nlohmann::json;
 
@@ -138,4 +141,80 @@ void message_handler::handle_angle(int fd, const std::string& body, ServerContex
 void message_handler::handle_chat(int fd, const std::string& body, ServerContext& ctx){
 	// 단순 broad cast 아직 적합성 검사 미실시
 	message_sender::send_chat(fd, body, ctx);
+}
+
+void message_handler::handler_hit(int fd, const std::string& body, ServerContext& ctx){
+	/*
+	struct MsgHitPayload {
+		int bodySlitherId;   // 충돌 대상의 고유 ID
+		float reportedX;       // 충돌 지점
+		float reportedY;
+	}*/
+	json j = json::parse(body);
+	int head_slither_id = ctx.client_contexts[fd].id;
+	int body_slither_id = std::stoi(static_cast<std::string>(j["bodySlitherId"]));
+	float reported_x = std::stof(static_cast<std::string>(j["reportedX"]));
+	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
+
+    Vector2 reported_point(reported_x, reported_y);
+	const auto& head_xy = ctx.client_contexts[head_slither_id].head;
+    Vector2 actual_head_pos(head_xy.x, head_xy.y);
+
+    if (actual_head_pos.distance_to(reported_point) > 3.0f) {
+        dbg("[handler_hit] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
+        return;
+    }
+
+    constexpr float hit_tolerance = 1.5f;
+    for (const auto& segment : ctx.client_contexts[body_slither_id].body_segments) {
+        Vector2 segmentPos(segment.x, segment.y);
+        if (reported_point.distance_to(segmentPos) <= hit_tolerance) {
+            dbg("[handler_hit] 충돌 유효: (slither_id)", head_slither_id, "가 죽었습니다. (slither_id)", body_slither_id, "에 의해서.");
+            slither_manager::kill_slither(head_slither_id, ctx);
+            return;
+        }
+    }
+
+    dbg("[handler_hit] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");
+}
+
+void message_handler::handler_eat(int fd, const std::string& body, ServerContext& ctx){
+	/*
+	struct MsgEatPayload {
+		int food_id;
+		float reported_x;
+		float reported_y;
+	}*/
+
+	json j = json::parse(body);
+	int slither_id = ctx.client_contexts[fd].id;
+	int food_id = std::stoi(static_cast<std::string>(j["foodId"]));
+	float reported_x = std::stof(static_cast<std::string>(j["reportedX"]));
+	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
+
+    Vector2 reported_point(reported_x, reported_y);
+	const auto& head_xy = ctx.client_contexts[slither_id].head;
+    Vector2 actual_head_pos(head_xy.x, head_xy.y);
+
+    if (actual_head_pos.distance_to(reported_point) > 3.0f) {
+        dbg("[handler_eat] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
+        return;
+    }
+
+	const auto& food_contexts = ctx.food_manager.get_all_food_contexts();
+	const auto& food_xy = food_contexts.find(food_id)->second;
+    Vector2 food_pos(food_xy.x, food_xy.y);
+	constexpr float eat_tolerance = 1.5f;
+
+	if (reported_point.distance_to(food_pos) <= eat_tolerance) {
+		dbg("[handler_eat] 충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
+		slither_manager::grow(fd, ctx);
+		slither_manager::update_body_len(fd, ctx);
+		ctx.food_manager.del_food(food_id, ctx);
+		message_sender::send_food_remove(food_id, ctx);
+		message_sender::send_slither_length_update(slither_id, +1, ctx);
+		return;
+	}
+
+	dbg("[handler_eat] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");	
 }

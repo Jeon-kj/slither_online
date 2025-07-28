@@ -6,5 +6,5 @@ namespace slither_manager {
     void grow(int fd, ServerContext& ctx);
     void trim(int fd, ServerContext& ctx);
     void update_body_len(int fd, ServerContext& ctx);
-    bool check_collision(int fd, ServerContext& ctx); // (향후)
+    void kill_slither(int target_id, ServerContext& ctx);
 }

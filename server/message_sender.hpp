@@ -20,4 +20,6 @@ namespace message_sender {
 	void send_food_spawn(std::unordered_map<int, FoodContext>& new_foods, ServerContext& ctx);
 
 	void send_food_remove(int food_id, ServerContext& ctx);
+
+	void send_slither_length_update(int slither_id, int delta, ServerContext& ctx);
 }

@@ -29,4 +29,8 @@ namespace message_handler {
 	void handle_angle(int fd, const std::string& body, ServerContext& ctx);
 
 	void handle_chat(int fd, const std::string& body, ServerContext& ctx);
+
+	void handler_hit(int fd, const std::string& body, ServerContext& ctx);
+	
+	void handler_eat(int fd, const std::string& body, ServerContext& ctx);
 }
