@@ -55,7 +55,7 @@ void message_handler::handle_message(
 		
 		case MSG_PLAYER_LEFT:
 			dbg("[handle_message] MSG_PLAYER_LEFT");
-			message_handler::handle_player_left(server, fd, ctx);
+			message_handler::handle_player_left(fd, body, ctx);
 			break;
 
 		case MSG_POS:
@@ -104,23 +104,16 @@ void message_handler::handle_player_join(
 }
 
 void message_handler::handle_player_left(
-	Server& server, 
-	int fd, 
+	int fd,
+	const std::string& body,
 	ServerContext& ctx)
 {
-	// 클라이언트가 해당 타입의 메시지를 보낼지 모르겠음.
-	// 타입의 데이터만 옴.
 	// 다른 클라이언트들에게 해당 클라이언트의 id를 전송.
 	// client_fds와 client_contexts에서 해당 데이터를 삭제 (Server::disconnect_client(fd))
-	json j;
-	{
-		std::lock_guard<std::mutex> lock(ctx.server_mutex);
-		j["id"]=ctx.client_contexts[fd].id;
-	}
 	
-	message_sender::send_player_left(fd, j.dump(), ctx);
+	message_sender::send_player_left(fd, body, ctx);
 	dbg("disconnect_client (handle_player_left)");
-	server.disconnect_client(fd);
+	ctx.server()->disconnect_client(fd);
 }
 
 void message_handler::handle_pos(const std::string& body){
@@ -131,7 +124,7 @@ void message_handler::handle_angle(int fd, const std::string& body, ServerContex
 	// {"angle": "string(float)"}
 	dbg("[handle_angle]");
 	json j = json::parse(body);
-	float angle = std::stof(body);
+	float angle = std::stof(static_cast<std::string>(j["angle"]));
 	
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[fd].angle = angle;

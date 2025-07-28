@@ -83,7 +83,6 @@ void message_sender::send_pos(int fd, ServerContext& ctx){
 void message_sender::send_chat(int fd, const std::string& body, ServerContext& ctx){
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	for(auto client_fd : ctx.client_fds){
-		if(client_fd == fd) continue;
 		utils::send_queue(client_fd, MSG_CHAT, body, ctx);
 	}
 }

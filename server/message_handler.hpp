@@ -19,8 +19,8 @@ namespace message_handler {
 	);
 
 	void handle_player_left(
-		Server& server,
-		int fd, 
+		int fd,
+		const std::string& body,
 		ServerContext& ctx
 	);
 
