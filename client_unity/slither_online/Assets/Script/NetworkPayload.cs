@@ -60,23 +60,31 @@ namespace Slither.Protocol
     [Serializable]
     public struct HitPayload
     {
-        public int attackerId;
-        public float headX;
-        public float headY;
-        public int targetId;
-        public int targetBodyIndex;
-        public float targetBodyX;
-        public float targetBodyY;
+        public int bodySlitherId;
+        public float reportedX;
+        public float reportedY;
+
+        public HitPayload(int id, float x, float y)
+        {
+            this.bodySlitherId = id;
+            this.reportedX = x;
+            this.reportedY = y;
+        }
     }
 
     [Serializable]
     public struct EatPayload
     {
-        public int id;
-        public float headX;
-        public float headY;
-        public float foodX;
-        public float foodY;
+        public int foodId;
+        public float reportedX;
+        public float reportedY;
+
+        public EatPayload(int id, float x, float y)
+        {
+            this.foodId = id;
+            this.reportedX = x;
+            this.reportedY = y;
+        }
     }
 
     [Serializable]
@@ -97,5 +105,13 @@ namespace Slither.Protocol
     public struct FoodRemovePayload
     {
         public int id;
+    }
+
+    [Serializable]
+    public struct SlitherLengthUpdatePayload
+    {
+        public int id;
+        public int length;
+        public int delta;
     }
 }

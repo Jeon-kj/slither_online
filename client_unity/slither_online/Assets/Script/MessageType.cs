@@ -10,6 +10,7 @@ namespace Slither.Protocol
         MSG_HIT = 6,
         MSG_EAT = 7,
         MSG_FOOD_SPAWN = 8,
-        MSG_FOOD_REMOVE = 9
+        MSG_FOOD_REMOVE = 9,
+        MSG_SLITHER_LENGTH_UPDATE = 10
     }
 }

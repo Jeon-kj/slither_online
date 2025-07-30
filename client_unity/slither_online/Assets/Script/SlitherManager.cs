@@ -7,6 +7,7 @@ using Slither.Protocol;
 public class SlitherManager : MonoBehaviour
 {
     public GameManager gameManager;
+    public NetworkManager networkManager;
 
     Dictionary<int, SlitherContext> players = new Dictionary<int, SlitherContext>();
     public GameObject slitherPrefab; // 유니티에서 프리팹으로 연결
@@ -48,45 +49,33 @@ public class SlitherManager : MonoBehaviour
             gameManager.InitPlayer(slither);
         }
         slither.name = $"Player_{payload.id}";
+        slither.GetComponent<IdHolder>().SetId(payload.id);
 
         players[payload.id] = context;
         Debug.Log($"[Type : MSG_PLAYER_JOIN] payload.id : {payload.id}, payload.x : {payload.x}, payload.y : {payload.y}, slither : {slither}");
     }
 
-    public void SyncSlither(MovePayload payload, SlitherContext sCtx)
+    public void UpdateSlitherPos(MovePayload payload)
     {
-        // 길이가 늘었을 경우
-        while (sCtx.bodySegments.Count < sCtx.bodyLen)
+        if (!ContainsId(payload.id))
         {
-            var segment = Instantiate(bodyPrefab);
-            Vector2 pos;
-            if (sCtx.bodySegments.Count > 0)
-                pos = sCtx.bodySegments[sCtx.bodySegments.Count - 1].transform.position;
-            else pos = sCtx.headObject.transform.position;
+            return;
+        }
 
-            segment.transform.position = pos;
-            segment.transform.SetParent(sCtx.bodyGroup);
-            sCtx.bodySegments.Add(segment);
-        }
-        // 길이가 줄었을 경우
-        while (sCtx.bodySegments.Count > sCtx.bodyLen)
-        {
-            var lastSegment = sCtx.bodySegments[sCtx.bodySegments.Count - 1];
-            GameObject.Destroy(lastSegment);
-            sCtx.bodySegments.RemoveAt(sCtx.bodySegments.Count - 1);
-        }
+        SlitherContext slither = players[payload.id];
+
         // 꼬리(body) 위치 갱신
-        for (int i = sCtx.bodySegments.Count - 1; i > 0; i--)
+        for (int i = slither.bodySegments.Count - 1; i > 0; i--)
         {
-            sCtx.bodySegments[i].transform.position = sCtx.bodySegments[i - 1].transform.position;
+            slither.bodySegments[i].transform.position = slither.bodySegments[i - 1].transform.position;
         }
-        if (sCtx.bodySegments.Count > 0)
+        if (slither.bodySegments.Count > 0)
         {
-            sCtx.bodySegments[0].transform.position = sCtx.headObject.transform.position;
+            slither.bodySegments[0].transform.position = slither.headObject.transform.position;
         }
         // head 위치 갱신
-        sCtx.headObject.transform.position = new Vector2(payload.x, payload.y);
-        sCtx.rootObject.transform.position = new Vector2(payload.x, payload.y);
+        slither.headObject.transform.position = new Vector2(payload.x, payload.y);
+        slither.rootObject.transform.position = new Vector2(payload.x, payload.y);
     }
 
     public void DelSCtx(int id, SlitherContext sCtx)
@@ -97,5 +86,58 @@ public class SlitherManager : MonoBehaviour
             Destroy(segment);
         }
         players.Remove(id);
+    }
+
+    public void UpdateSlitherLength(int id, int length)
+    {
+        if (!ContainsId(id))
+        {
+            return; 
+        }
+        
+        players[id].bodyLen = length;
+
+        SlitherContext slither = players[id];
+
+        while (slither.bodySegments.Count < slither.bodyLen)
+        {
+            var segment = Instantiate(bodyPrefab);
+            Vector2 pos;
+            if (slither.bodySegments.Count > 0)
+                pos = slither.bodySegments[slither.bodySegments.Count - 1].transform.position;
+            else pos = slither.headObject.transform.position;
+
+            segment.transform.position = pos;
+            segment.transform.SetParent(slither.bodyGroup);
+            slither.bodySegments.Add(segment);
+        }
+        // 길이가 줄었을 경우
+        while (slither.bodySegments.Count > slither.bodyLen)
+        {
+            var lastSegment = slither.bodySegments[slither.bodySegments.Count - 1];
+            GameObject.Destroy(lastSegment);
+            slither.bodySegments.RemoveAt(slither.bodySegments.Count - 1);
+        }
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Food"))
+        {
+            int foodId = other.GetComponent<IdHolder>().GetId();
+            Vector2 hitPos = other.ClosestPoint(transform.position);
+
+            networkManager.SendEat(foodId, hitPos);
+        }
+        else if (other.CompareTag("SlitherBody"))
+        {
+            int myId = gameManager.GetLocalPlayerId();
+            int targetId = other.transform.parent.parent.GetComponent<IdHolder>().GetId();
+
+            if (myId == targetId)
+                return; // 내 body와 충돌 → 무시
+
+            networkManager.SendHit(targetId, transform.position);
+        }
     }
 }

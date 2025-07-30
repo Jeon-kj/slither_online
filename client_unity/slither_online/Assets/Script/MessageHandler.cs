@@ -32,6 +32,12 @@ public class MessageHandler : MonoBehaviour
             case MessageType.MSG_FOOD_SPAWN:
                 HandleFoodSpawn(body); 
                 break;
+            case MessageType.MSG_FOOD_REMOVE:
+                HandleFoodRemove(body);
+                break;
+            case MessageType.MSG_SLITHER_LENGTH_UPDATE:
+                HandleSlitherLengthUpdate(body);
+                break;
         }
         return true;
     }
@@ -41,14 +47,9 @@ public class MessageHandler : MonoBehaviour
         var payload = JsonUtility.FromJson<MovePayload>(body);
         //Debug.Log($"[Type : MSG_POS] id:{payload.id}, x:{payload.x}, y:{payload.y}, length:{payload.length}");
 
-        if (slitherManager.ContainsId(payload.id))
-        {
-            SlitherContext sCtx = slitherManager.GetPlayer(payload.id);
-            sCtx.bodyLen = payload.length;
-            MainThreadDispatcher.Enqueue(() => {
-                slitherManager.SyncSlither(payload, sCtx);
-            });
-        }
+        MainThreadDispatcher.Enqueue(() => {
+            slitherManager.UpdateSlitherPos(payload);
+        });
     }
 
     public void HandleChat(string body)    // [수정 필요] 채팅창 구현
@@ -133,6 +134,17 @@ public class MessageHandler : MonoBehaviour
         MainThreadDispatcher.Enqueue(() => {
             Debug.Log($"[HandleFoodRemove] MainThreadDispatcher");
             foodManager.ApplyFoodRemove(payload);
+        });
+    }
+
+    public void HandleSlitherLengthUpdate(string body)
+    {
+        DebugUtil.Dbg("[HandleSlitherLengthUpdate]");
+        var payload = JsonUtility.FromJson<SlitherLengthUpdatePayload>(body);
+
+        MainThreadDispatcher.Enqueue(() => {
+            Debug.Log($"[HandleSlitherLengthUpdate] MainThreadDispatcher");
+            slitherManager.UpdateSlitherLength(payload.id, payload.length);
         });
     }
 }

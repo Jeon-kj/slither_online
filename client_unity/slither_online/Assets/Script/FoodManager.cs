@@ -12,6 +12,7 @@ public class FoodManager : MonoBehaviour
         DebugUtil.Dbg("[ApplyFoodSpawn] id : ", payload.id);
         Vector2 spawnPos = new Vector2(payload.x, payload.y);
         GameObject food = Instantiate(foodPrefab, spawnPos, Quaternion.identity);
+        food.GetComponent<IdHolder>().SetId(payload.id);
 
         FoodContext context = new FoodContext { foodObject = food };
         foods[payload.id] = context;

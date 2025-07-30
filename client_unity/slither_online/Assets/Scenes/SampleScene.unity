@@ -586,6 +586,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameManager: {fileID: 519368046}
+  networkManager: {fileID: 809983123}
   slitherPrefab: {fileID: 3730468932768853464, guid: dbd93546897a465469b9737a73d95541, type: 3}
   bodyPrefab: {fileID: 4896753545378732423, guid: ea3e3ba8063efba4bb2b283dd5a51815, type: 3}
 --- !u!4 &1180243426
@@ -722,7 +723,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 89bbe42e80becbf4ebfe881c8fc012bb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  foodPrefab: {fileID: 0}
+  foodPrefab: {fileID: 4896753545378732423, guid: dbc7136b428d7cb4e884102c79271484, type: 3}
 --- !u!4 &1626769910
 Transform:
   m_ObjectHideFlags: 0
@@ -768,7 +769,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   slitherManager: {fileID: 1180243425}
-  foodManager: {fileID: 0}
+  foodManager: {fileID: 1626769909}
   gameManager: {fileID: 519368046}
 --- !u!4 &1963038919
 Transform:

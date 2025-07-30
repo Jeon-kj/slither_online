@@ -152,6 +152,38 @@ public class NetworkManager : MonoBehaviour
         stream.Write(headerLen, 0, headerLen.Length);
         stream.Write(body, 0, body.Length);
     }
+
+    public void SendHit(int slitherId, Vector2 hitPos)
+    {
+        HitPayload payload = new HitPayload(slitherId, hitPos.x, hitPos.y);
+        string json = JsonUtility.ToJson(payload);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+
+        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_HIT));
+        byte[] headerType = BitConverter.GetBytes(type);
+        int len = IPAddress.HostToNetworkOrder(body.Length);
+        byte[] headerLen = BitConverter.GetBytes(len);
+
+        stream.Write(headerType, 0, headerType.Length);
+        stream.Write(headerLen, 0, headerLen.Length);
+        stream.Write(body, 0, body.Length);
+    }
+
+    public void SendEat(int foodId, Vector2 hitPos)
+    {
+        EatPayload payload = new EatPayload(foodId, hitPos.x, hitPos.y);
+        string json = JsonUtility.ToJson(payload);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+
+        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_EAT));
+        byte[] headerType = BitConverter.GetBytes(type);
+        int len = IPAddress.HostToNetworkOrder(body.Length);
+        byte[] headerLen = BitConverter.GetBytes(len);
+
+        stream.Write(headerType, 0, headerType.Length);
+        stream.Write(headerLen, 0, headerLen.Length);
+        stream.Write(body, 0, body.Length);
+    }
     #endregion
 
     #region RecvThread And Logic
