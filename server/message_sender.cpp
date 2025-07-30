@@ -69,7 +69,6 @@ void message_sender::send_pos(int fd, ServerContext& ctx){
 		j["id"] = client.id;
 		j["x"] = client.head.x;
 		j["y"] = client.head.y;
-		j["length"] = client.body_segments.size();
 	}
 
 	std::string body = j.dump();
