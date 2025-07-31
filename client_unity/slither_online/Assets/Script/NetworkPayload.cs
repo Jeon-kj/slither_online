@@ -3,18 +3,27 @@ using System;
 namespace Slither.Protocol
 {
     [Serializable]
+    public struct PlayerJoinPayload
+    {
+        public int id;
+        public float x;
+        public float y;
+        public int length;
+    }
+
+    [Serializable]
+    public struct PlayerJoinPayloadList
+    {
+        public int id;
+        public PlayerJoinPayload[] payloads;
+    }
+
+    [Serializable]
     public struct MovePayload
     {
         public int id;
         public float x;
         public float y;
-    }
-
-    [Serializable]
-    public struct MovePayloadList
-    {
-        public int id;
-        public MovePayload[] payloads;
     }
 
     [Serializable]

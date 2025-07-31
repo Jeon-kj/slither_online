@@ -73,7 +73,7 @@ public class MessageHandler : MonoBehaviour
         if (body.TrimStart().StartsWith("{\"id\""))
         {
             DebugUtil.Dbg("[HandlePlayerJoin] first if");
-            var payloadList = JsonUtility.FromJson<MovePayloadList>(body);
+            var payloadList = JsonUtility.FromJson<PlayerJoinPayloadList>(body);
             gameManager.SetLocalPlayerId(payloadList.id);
 
             foreach (var payload in payloadList.payloads)
@@ -90,7 +90,7 @@ public class MessageHandler : MonoBehaviour
         else
         {
             DebugUtil.Dbg("[HandlePlayerJoin] else");
-            var payload = JsonUtility.FromJson<MovePayload>(body);
+            var payload = JsonUtility.FromJson<PlayerJoinPayload>(body);
             Debug.Log($"[Type : MSG_HELL] id:{payload.id}, x:{payload.x}, y:{payload.y}");
 
             MainThreadDispatcher.Enqueue(() => {

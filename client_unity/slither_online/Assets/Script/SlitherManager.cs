@@ -21,7 +21,7 @@ public class SlitherManager : MonoBehaviour
 
     public bool TryGetPlayer(int id, out SlitherContext context) { return players.TryGetValue(id, out context); }
 
-    public void InitSlither(bool isLocalPlayer, MovePayload payload)
+    public void InitSlither(bool isLocalPlayer, PlayerJoinPayload payload)
     {
         DebugUtil.Dbg("[InitSlither] isLocalPlayer : ", isLocalPlayer);
         Vector2 spawnPos = new Vector2(payload.x, payload.y);
