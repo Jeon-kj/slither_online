@@ -34,6 +34,7 @@ void slither_manager::move_client(int id, float delta_time, float speed, ServerC
 void slither_manager::grow(int id, ServerContext& ctx){
 	ClientContext& client = ctx.client_contexts[id];
 
+	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	while(client.body_segments.size() < client.body_len){
 		client.body_segments.emplace_back(client.head.x, client.head.y);
 	}
@@ -42,12 +43,14 @@ void slither_manager::grow(int id, ServerContext& ctx){
 void slither_manager::trim(int id, ServerContext& ctx){
 	ClientContext& client = ctx.client_contexts[id];
 
+	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	while(client.body_segments.size() > client.body_len){
 		client.body_segments.pop_back();
 	}
 }
 
 void slither_manager::update_body_len(int id, ServerContext &ctx){
+	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[id].body_len = ctx.client_contexts[id].body_segments.size();
 }
 

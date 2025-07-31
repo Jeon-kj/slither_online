@@ -102,7 +102,7 @@ void Server::handle_read(int fd){
 		if(n > 0){
 			dbg("[handle_read] n > 0");
 			{
-				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+				//std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 				int client_id = ctx_.fd_to_id[fd];
 				ctx_.client_contexts[client_id].recv_buffer.insert(
 					ctx_.client_contexts[client_id].recv_buffer.end(), 
@@ -116,7 +116,7 @@ void Server::handle_read(int fd){
 			while(true) {
 				bool loop_check;
 				{
-					std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+					//std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 					int client_id = ctx_.fd_to_id[fd];
 					loop_check = message_handler::extract_message(client_id, type, body, ctx_);
 				}
@@ -144,39 +144,44 @@ void Server::handle_read(int fd){
 
 void Server::handle_write(int fd){
 	dbg("handle_write join");
-	// 안전하게 client를 찾기
-	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-	int client_id = ctx_.fd_to_id[fd];
-	ClientContext& client = ctx_.client_contexts[client_id];
+	bool should_disconnect = false;
 
-	while (!client.send_queue.empty()) {
-		auto& msg = client.send_queue.front();
-		ssize_t sent = send(fd, msg.data(), msg.size(), 0);
-		if (sent < 0) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				// 버퍼 꽉 찼음. 다음 EPOLLOUT을 기다림
-				break;
-			} else {
-				// 진짜 에러 발생: 연결 종료 처리
-				dbg("disconnect_client (handle_write)");
-				disconnect_client(fd);
+	{
+		std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+		int client_id = ctx_.fd_to_id[fd];
+		ClientContext& client = ctx_.client_contexts[client_id];	
+
+		while (!client.send_queue.empty()) {
+			auto& msg = client.send_queue.front();
+			ssize_t sent = send(fd, msg.data(), msg.size(), 0);
+			if (sent < 0) {
+				if (errno == EAGAIN || errno == EWOULDBLOCK) {
+					// 버퍼 꽉 찼음. 다음 EPOLLOUT을 기다림
+					break;
+				} else {
+					// 진짜 에러 발생: 연결 종료 처리
+					dbg("disconnect_client (handle_write)");
+					should_disconnect = true;
+					break;
+				}
+			}
+
+			if (sent < (ssize_t)msg.size()) {
+				// 아직 덜 보낸 데이터가 남았음
+				// 덜 보낸 부분으로 msg를 잘라야 함
+				msg.erase(msg.begin(), msg.begin() + sent);
 				break;
 			}
+
+			client.send_queue.pop_front();
 		}
 
-		if (sent < (ssize_t)msg.size()) {
-			// 아직 덜 보낸 데이터가 남았음
-			// 덜 보낸 부분으로 msg를 잘라야 함
-			msg.erase(msg.begin(), msg.begin() + sent);
-			break;
+		if (client.send_queue.empty() && !should_disconnect) {
+			utils::modify_epoll_events(epoll_fd_, fd, EPOLLIN);
 		}
-
-		client.send_queue.pop_front();
 	}
-
-	if (client.send_queue.empty()) {
-		utils::modify_epoll_events(epoll_fd_, fd, EPOLLIN);
-	}
+	
+	if(should_disconnect) disconnect_client(fd);
 }
 
 void Server::main_loop(){
@@ -208,20 +213,22 @@ void Server::main_loop(){
 
 	auto game_loop = [&](){
 		while(running_){
-			if(!ctx_.client_fds.empty()){
-				dbg("[game_loop] server_mutex_ 시도");
+			{
+				dbg("[game_loop] server_mutex_ 시도");	
 				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 				dbg("[game_loop] server_mutex_ 완료");
-				for(auto client_fd: ctx_.client_fds){
-					dbg("[game_loop] client_fd:", client_fd);
-					int client_id = ctx_.fd_to_id[client_fd];
-					slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);
-					message_sender::send_pos(client_fd, ctx_);
-				}				
-			}
-			else{
-				dbg("[game_loop] 대기 중 - 클라이언트 없음");
-			}
+				if(!ctx_.client_fds.empty()){
+					for(auto client_fd: ctx_.client_fds){
+						dbg("[game_loop] client_fd:", client_fd);
+						int client_id = ctx_.fd_to_id[client_fd];
+						slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);
+						message_sender::send_pos(client_fd, ctx_);
+					}				
+				}
+				else{
+					dbg("[game_loop] 대기 중 - 클라이언트 없음");
+				}
+			}			
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 		}
 	};

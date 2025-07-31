@@ -162,25 +162,31 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 	float reported_x = std::stof(static_cast<std::string>(j["reportedX"]));
 	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
 
-    Vector2 reported_point(reported_x, reported_y);
-	const auto& head_xy = ctx.client_contexts[head_slither_id].head;
-    Vector2 actual_head_pos(head_xy.x, head_xy.y);
+	bool should_kill = false;
+	{
+		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 
-    if (actual_head_pos.distance_to(reported_point) > 3.0f) {
-        dbg("[handler_hit] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
-        return;
-    }
+		Vector2 reported_point(reported_x, reported_y);
+		const auto& head_xy = ctx.client_contexts[head_slither_id].head;
+		Vector2 actual_head_pos(head_xy.x, head_xy.y);
 
-    constexpr float hit_tolerance = 1.5f;
-    for (const auto& segment : ctx.client_contexts[body_slither_id].body_segments) {
-        Vector2 segmentPos(segment.x, segment.y);
-        if (reported_point.distance_to(segmentPos) <= hit_tolerance) {
-            dbg("[handler_hit] 충돌 유효: (slither_id)", head_slither_id, "가 죽었습니다. (slither_id)", body_slither_id, "에 의해서.");
-            slither_manager::kill_slither(head_slither_id, ctx);
-            return;
-        }
-    }
+		if (actual_head_pos.distance_to(reported_point) > 3.0f) {
+			dbg("[handler_hit] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
+			return;
+		}
 
+		constexpr float hit_tolerance = 1.5f;
+		for (const auto& segment : ctx.client_contexts[body_slither_id].body_segments) {
+			Vector2 segmentPos(segment.x, segment.y);
+			if (reported_point.distance_to(segmentPos) <= hit_tolerance) {
+				dbg("[handler_hit] 충돌 유효: (slither_id)", head_slither_id, "가 죽었습니다. (slither_id)", body_slither_id, "에 의해서.");
+				should_kill = true;			
+				break;
+			}
+		}
+	}
+	
+	if(should_kill) slither_manager::kill_slither(head_slither_id, ctx);
     dbg("[handler_hit] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");
 }
 
@@ -199,7 +205,11 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
 
     Vector2 reported_point(reported_x, reported_y);
-	const auto& head_xy = ctx.client_contexts[slither_id].head;
+	SlitherSegment head_xy;
+	{
+		std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		head_xy = ctx.client_contexts[slither_id].head;
+	} 
     Vector2 actual_head_pos(head_xy.x, head_xy.y);
 
     if (actual_head_pos.distance_to(reported_point) > 3.0f) {

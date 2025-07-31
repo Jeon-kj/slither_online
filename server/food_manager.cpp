@@ -27,24 +27,27 @@ void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 	ClientContext& dead_client = ctx.client_contexts[dead_id];
 
 	std::unordered_map<int, FoodContext> new_foods;
-	while(new_foods.size() < dead_client.body_len+1){
-		float x;
-		float y;
-		if(new_foods.size() == 0){
-			x = dead_client.head.x;
-			y = dead_client.head.y;
+	{
+		std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		while(new_foods.size() < dead_client.body_len+1){
+			float x;
+			float y;
+			if(new_foods.size() == 0){
+				x = dead_client.head.x;
+				y = dead_client.head.y;
+			}
+			else{
+				SlitherSegment dead_body = dead_client.body_segments.back();
+				dead_client.body_segments.pop_back();
+				x = dead_body.x;
+				y = dead_body.y;
+			}
+			
+			FoodContext food(x, y);
+			int usable_id = pop_usable_id(ctx);
+			new_foods[usable_id] = food;
+			food_contexts[usable_id] = food;
 		}
-		else{
-			SlitherSegment dead_body = dead_client.body_segments.back();
-			dead_client.body_segments.pop_back();
-			x = dead_body.x;
-			y = dead_body.y;
-		}
-		
-		FoodContext food(x, y);
-		int usable_id = pop_usable_id(ctx);
-		new_foods[usable_id] = food;
-		food_contexts[usable_id] = food;
 	}
 
 	message_sender::send_food_spawn(new_foods, ctx);
