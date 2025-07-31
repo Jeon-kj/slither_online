@@ -20,7 +20,7 @@ private:
 	std::queue<int> reusable_ids_;
 public:
 	void spawn_food_random(ServerContext& ctx);
-	void spawn_food_on_death(int dead_fd, ServerContext& ctx);
+	void spawn_food_on_death(int dead_id, ServerContext& ctx);
 	void del_food(int food_id, ServerContext& ctx);
 
 	std::unordered_map<int, FoodContext>& get_all_food_contexts() { return food_contexts_;}

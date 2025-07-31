@@ -49,8 +49,9 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 
 	{
 		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
-		ctx.client_contexts[fd].send_queue.push_back(packet);
-		utils::modify_epoll_events(ctx.epoll_fd, fd, EPOLLIN | EPOLLOUT);
+		int client_id = ctx.fd_to_id[fd];
+		ctx.client_contexts[client_id].send_queue.push_back(packet);
+		utils::modify_epoll_events(ctx.server()->get_epoll_fd(), fd, EPOLLIN | EPOLLOUT);
 	}
 }
 

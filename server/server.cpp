@@ -88,6 +88,7 @@ void Server::accept_client(){
 			ClientContext{client_fd}
 		);
 		ctx_.client_fds.push_back(client_fd);
+		ctx_.fd_to_id[client_fd] = client_fd;
 	}
 	
 	std::cout << "Client connected: " << client_fd << std::endl;
@@ -102,8 +103,9 @@ void Server::handle_read(int fd){
 			dbg("[handle_read] n > 0");
 			{
 				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-				ctx_.client_contexts[fd].recv_buffer.insert(
-					ctx_.client_contexts[fd].recv_buffer.end(), 
+				int client_id = ctx_.fd_to_id[fd];
+				ctx_.client_contexts[client_id].recv_buffer.insert(
+					ctx_.client_contexts[client_id].recv_buffer.end(), 
 					buf, 
 					buf+n
 				);
@@ -115,7 +117,8 @@ void Server::handle_read(int fd){
 				bool loop_check;
 				{
 					std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-					loop_check = message_handler::extract_message(fd, type, body, ctx_);
+					int client_id = ctx_.fd_to_id[fd];
+					loop_check = message_handler::extract_message(client_id, type, body, ctx_);
 				}
 
 				if(!loop_check) break;
@@ -143,7 +146,8 @@ void Server::handle_write(int fd){
 	dbg("handle_write join");
 	// 안전하게 client를 찾기
 	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-	ClientContext& client = ctx_.client_contexts[fd];
+	int client_id = ctx_.fd_to_id[fd];
+	ClientContext& client = ctx_.client_contexts[client_id];
 
 	while (!client.send_queue.empty()) {
 		auto& msg = client.send_queue.front();
@@ -210,7 +214,8 @@ void Server::main_loop(){
 				dbg("[game_loop] server_mutex_ 완료");
 				for(auto client_fd: ctx_.client_fds){
 					dbg("[game_loop] client_fd:", client_fd);
-					slither_manager::move_client(client_fd, 0.02f, 1.0f, ctx_);
+					int client_id = ctx_.fd_to_id[client_fd];
+					slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);
 					message_sender::send_pos(client_fd, ctx_);
 				}				
 			}
@@ -232,7 +237,9 @@ void Server::disconnect_client(int fd){
 	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
 	close(fd);
-	ctx_.client_contexts.erase(fd);
+	int client_id = ctx_.fd_to_id[fd];
+	ctx_.client_contexts.erase(client_id);
+	ctx_.fd_to_id.erase(fd);
 	ctx_.client_fds.erase(
             std::remove(ctx_.client_fds.begin(), ctx_.client_fds.end(), fd),
             ctx_.client_fds.end()

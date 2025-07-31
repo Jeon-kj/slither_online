@@ -11,9 +11,9 @@
 
 using json = nlohmann::json;
 
-bool message_handler::extract_message(int fd, int32_t& type, std::string& body, ServerContext& ctx){
+bool message_handler::extract_message(int id, int32_t& type, std::string& body, ServerContext& ctx){
 	dbg("[extract_message]");
-	ClientContext& client = ctx.client_contexts[fd];
+	ClientContext& client = ctx.client_contexts[id];
 	auto& buffer = client.recv_buffer;
 	int32_t body_len;
 	int32_t header_len = sizeof(type)+sizeof(body_len);
@@ -41,7 +41,7 @@ bool message_handler::extract_message(int fd, int32_t& type, std::string& body, 
 // server.cpp의 handle_read에서 호출
 void message_handler::handle_message(
 	Server& server,
-	int fd, 
+	int id, 
 	int32_t type, 
 	const std::string& body, 
 	ServerContext& ctx)
@@ -50,12 +50,12 @@ void message_handler::handle_message(
 	{
 		case MSG_PLAYER_JOIN:
 			dbg("[handle_message] MSG_PLAYER_JOIN");
-			message_handler::handle_player_join(fd, body, ctx);
+			message_handler::handle_player_join(id, body, ctx);
 			break;
 		
 		case MSG_PLAYER_LEFT:
 			dbg("[handle_message] MSG_PLAYER_LEFT");
-			message_handler::handle_player_left(fd, body, ctx);
+			message_handler::handle_player_left(id, body, ctx);
 			break;
 
 		case MSG_POS:
@@ -65,18 +65,28 @@ void message_handler::handle_message(
 
 		case MSG_ANGLE:
 			dbg("[handle_message] MSG_ANGLE");
-			message_handler::handle_angle(fd, body, ctx);
+			message_handler::handle_angle(id, body, ctx);
 			break;
 
 		case MSG_CHAT:
 			dbg("[handle_message] MSG_CHAT");
-			message_handler::handle_chat(fd, body, ctx);
+			message_handler::handle_chat(id, body, ctx);
+			break;
+
+		case MSG_HIT:
+			dbg("[handle_message] MSG_CHAT");
+			message_handler::handle_hit(id, body, ctx);
+			break;
+
+		case MSG_EAT:
+			dbg("[handle_message] MSG_CHAT");
+			message_handler::handle_eat(id, body, ctx);
 			break;
 	}
 }
 
 void message_handler::handle_player_join(
-	int fd, 
+	int id, 
 	const std::string& body, 
 	ServerContext& ctx)
 {
@@ -88,8 +98,9 @@ void message_handler::handle_player_join(
 	json j;
 	{
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
-		ClientContext& client = ctx.client_contexts[fd];
-		client.id = client.fd;
+
+		ClientContext& client = ctx.client_contexts[id];		
+		client.id = id;
 		client.head.x = rand() % 10 - 5;
 		client.head.y = rand() % 10 - 5;
 		client.turn_dir = "w";
@@ -100,17 +111,18 @@ void message_handler::handle_player_join(
 		j["y"] = client.head.y;
 	}
 	
+	int fd = ctx.client_contexts[fd].id;
 	message_sender::send_player_join(fd, j.dump(), ctx);
 }
 
 void message_handler::handle_player_left(
-	int fd,
+	int id,
 	const std::string& body,
 	ServerContext& ctx)
 {
 	// 다른 클라이언트들에게 해당 클라이언트의 id를 전송.
 	// client_fds와 client_contexts에서 해당 데이터를 삭제 (Server::disconnect_client(fd))
-	
+	int fd = ctx.client_contexts[id].fd;
 	message_sender::send_player_left(fd, body, ctx);
 	dbg("disconnect_client (handle_player_left)");
 	ctx.server()->disconnect_client(fd);
@@ -120,23 +132,24 @@ void message_handler::handle_pos(const std::string& body){
 	// 클라이언트는 해당 타입의 메시지를 보내지 않음.
 }
 
-void message_handler::handle_angle(int fd, const std::string& body, ServerContext& ctx){
+void message_handler::handle_angle(int id, const std::string& body, ServerContext& ctx){
 	// {"angle": "string(float)"}
 	dbg("[handle_angle]");
 	json j = json::parse(body);
 	float angle = std::stof(static_cast<std::string>(j["angle"]));
 	
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
-	ctx.client_contexts[fd].angle = angle;
-	dbg("[handle_angle] ctx.client_contexts[fd].angle : ", ctx.client_contexts[fd].angle);
+	ctx.client_contexts[id].angle = angle;
+	dbg("[handle_angle] ctx.client_contexts[id].angle : ", ctx.client_contexts[id].angle);
 }
 
-void message_handler::handle_chat(int fd, const std::string& body, ServerContext& ctx){
+void message_handler::handle_chat(int id, const std::string& body, ServerContext& ctx){
 	// 단순 broad cast 아직 적합성 검사 미실시
+	int fd = ctx.client_contexts[id].fd;
 	message_sender::send_chat(fd, body, ctx);
 }
 
-void message_handler::handler_hit(int fd, const std::string& body, ServerContext& ctx){
+void message_handler::handle_hit(int id, const std::string& body, ServerContext& ctx){
 	/*
 	struct MsgHitPayload {
 		int bodySlitherId;   // 충돌 대상의 고유 ID
@@ -144,7 +157,7 @@ void message_handler::handler_hit(int fd, const std::string& body, ServerContext
 		float reportedY;
 	}*/
 	json j = json::parse(body);
-	int head_slither_id = ctx.client_contexts[fd].id;
+	int head_slither_id = id;
 	int body_slither_id = std::stoi(static_cast<std::string>(j["bodySlitherId"]));
 	float reported_x = std::stof(static_cast<std::string>(j["reportedX"]));
 	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
@@ -171,7 +184,7 @@ void message_handler::handler_hit(int fd, const std::string& body, ServerContext
     dbg("[handler_hit] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");
 }
 
-void message_handler::handler_eat(int fd, const std::string& body, ServerContext& ctx){
+void message_handler::handle_eat(int id, const std::string& body, ServerContext& ctx){
 	/*
 	struct MsgEatPayload {
 		int food_id;
@@ -180,7 +193,7 @@ void message_handler::handler_eat(int fd, const std::string& body, ServerContext
 	}*/
 
 	json j = json::parse(body);
-	int slither_id = ctx.client_contexts[fd].id;
+	int slither_id = id;
 	int food_id = std::stoi(static_cast<std::string>(j["foodId"]));
 	float reported_x = std::stof(static_cast<std::string>(j["reportedX"]));
 	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
@@ -201,8 +214,8 @@ void message_handler::handler_eat(int fd, const std::string& body, ServerContext
 
 	if (reported_point.distance_to(food_pos) <= eat_tolerance) {
 		dbg("[handler_eat] 충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
-		slither_manager::grow(fd, ctx);
-		slither_manager::update_body_len(fd, ctx);
+		slither_manager::grow(slither_id, ctx);
+		slither_manager::update_body_len(slither_id, ctx);
 		ctx.food_manager.del_food(food_id, ctx);
 		message_sender::send_food_remove(food_id, ctx);
 		message_sender::send_slither_length_update(slither_id, +1, ctx);

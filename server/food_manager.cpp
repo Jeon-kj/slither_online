@@ -22,9 +22,9 @@ void FoodManager::spawn_food_random(ServerContext& ctx){
 	message_sender::send_food_spawn(new_foods, ctx);
 }
 
-void FoodManager::spawn_food_on_death(int dead_fd, ServerContext& ctx){
+void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
-	ClientContext& dead_client = ctx.client_contexts[dead_fd];
+	ClientContext& dead_client = ctx.client_contexts[dead_id];
 
 	std::unordered_map<int, FoodContext> new_foods;
 	while(new_foods.size() < dead_client.body_len+1){

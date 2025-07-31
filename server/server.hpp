@@ -13,7 +13,8 @@ public:
     void set_server(Server* server) { server_ = server; }
     Server* server() const { return server_; }
 
-    std::unordered_map<int, ClientContext> client_contexts;
+    std::unordered_map<int, ClientContext> client_contexts;	// id -> ClientContext
+	std::unordered_map<int, int> fd_to_id;	// fd -> id
     std::vector<int> client_fds;
     std::mutex server_mutex;
     FoodManager food_manager;
@@ -30,6 +31,7 @@ public:
 	void stop();	
 
 	void disconnect_client(int fd);
+	int get_epoll_fd() const {return epoll_fd_;}
 
 private:
 	int port_;
@@ -40,8 +42,7 @@ private:
 	ServerContext& ctx_;
 
 	void setup_server_socket();
-	void setup_epoll();
-	int get_epoll_fd() const {return epoll_fd_;}
+	void setup_epoll();	
 	void accept_client();
 	void handle_read(int fd);
 	void handle_write(int fd);

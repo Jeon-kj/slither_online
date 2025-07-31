@@ -7,9 +7,9 @@
 
 using json = nlohmann::json;
 
-void slither_manager::move_client(int fd, float delta_time, float speed, ServerContext& ctx){
+void slither_manager::move_client(int id, float delta_time, float speed, ServerContext& ctx){
 	dbg("[move_client]");
-	ClientContext& client = ctx.client_contexts[fd];
+	ClientContext& client = ctx.client_contexts[id];
 
 	float dx = std::cos(client.angle) * speed * delta_time;
     float dy = std::sin(client.angle) * speed * delta_time;
@@ -31,31 +31,31 @@ void slither_manager::move_client(int fd, float delta_time, float speed, ServerC
     client.head.y += dy;
 }
 
-void slither_manager::grow(int fd, ServerContext& sCtx){
-	ClientContext& cCtx = sCtx.client_contexts[fd];
+void slither_manager::grow(int id, ServerContext& ctx){
+	ClientContext& client = ctx.client_contexts[id];
 
-	while(cCtx.body_segments.size() < cCtx.body_len){
-		cCtx.body_segments.emplace_back(cCtx.head.x, cCtx.head.y);
+	while(client.body_segments.size() < client.body_len){
+		client.body_segments.emplace_back(client.head.x, client.head.y);
 	}
 }
 
-void slither_manager::trim(int fd, ServerContext& sCtx){
-	ClientContext& cCtx = sCtx.client_contexts[fd];
+void slither_manager::trim(int id, ServerContext& ctx){
+	ClientContext& client = ctx.client_contexts[id];
 
-	while(cCtx.body_segments.size() > cCtx.body_len){
-		cCtx.body_segments.pop_back();
+	while(client.body_segments.size() > client.body_len){
+		client.body_segments.pop_back();
 	}
 }
 
-void slither_manager::update_body_len(int fd, ServerContext &ctx){
-	ctx.client_contexts[fd].body_len = ctx.client_contexts[fd].body_segments.size();
+void slither_manager::update_body_len(int id, ServerContext &ctx){
+	ctx.client_contexts[id].body_len = ctx.client_contexts[id].body_segments.size();
 }
 
 void slither_manager::kill_slither(int target_id, ServerContext& ctx){
-	int target_fd = ctx.client_contexts[target_id].fd;
 	// Slither 위치에 먹이 생성 + 먹이 생성 전송
-	ctx.food_manager.spawn_food_on_death(target_fd, ctx);
-	// Slither 소유 client 연결 종료
+	ctx.food_manager.spawn_food_on_death(target_id, ctx);
+
+	int target_fd = ctx.client_contexts[target_id].fd;
 	ctx.server()->disconnect_client(target_fd);
 	// 사용자들에게 Slither 제거 메시지 전송
 	json j;

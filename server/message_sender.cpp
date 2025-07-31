@@ -26,7 +26,7 @@ void message_sender::send_player_join(
 	
 	{
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
-		for(const auto& [fd, client] : ctx.client_contexts){
+		for(const auto& [id, client] : ctx.client_contexts){
 			dbg("[send_player_join] client_id : ", client.id);
 			j.push_back({
 				{"id", client.id},
@@ -37,7 +37,7 @@ void message_sender::send_player_join(
 	}
 
 	json wrapper;
-	wrapper["id"] = ctx.client_contexts[fd].id;
+	wrapper["id"] = ctx.fd_to_id[fd];
 	wrapper["payloads"] = j;
 
 	std::string send_body = wrapper.dump();
@@ -64,7 +64,8 @@ void message_sender::send_pos(int fd, ServerContext& ctx){
 	json j;
 	{
 		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
-		ClientContext& client = ctx.client_contexts[fd];
+		int client_id = ctx.fd_to_id[fd];
+		ClientContext& client = ctx.client_contexts[client_id];
 	
 		j["id"] = client.id;
 		j["x"] = client.head.x;
