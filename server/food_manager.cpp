@@ -13,6 +13,7 @@ void FoodManager::spawn_food_random(ServerContext& ctx){
 
 	std::unordered_map<int, FoodContext> new_foods;
 	while(food_contexts.size()<GameConfig::INIT_FOOD_COUNT){
+		dbg("[FoodManager::spawn_food_random] food_contexts.size() : ", food_contexts.size(), ", GameConfig::INIT_FOOD_COUNT : ", GameConfig::INIT_FOOD_COUNT);
 		float x = utils::random_float(-GameConfig::MAP_WIDTH/2, GameConfig::MAP_WIDTH/2);
 		float y = utils::random_float(-GameConfig::MAP_HEIGHT/2, GameConfig::MAP_HEIGHT/2);
 
@@ -67,6 +68,8 @@ void FoodManager::del_food(int food_id, ServerContext &ctx){
 
 int FoodManager::pop_usable_id(ServerContext &ctx){
 	dbg("[FoodManager::pop_usable_id]");
+	if(ctx.food_manager.empty_queue()) return ctx.food_manager.get_contexts_size();
+	
 	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
 	int food_id = reusable_ids.front();
 	reusable_ids.pop();

@@ -22,23 +22,34 @@ void message_sender::send_player_join(
 		}
 	}
 	
-	json j = json::array();
-	
+	json slithers = json::array();
+	json foods = json::array();
 	{
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		for(const auto& [id, client] : ctx.client_contexts){
 			dbg("[message_sender::send_player_join3] client_id : ", client.id);
-			j.push_back({
+			slithers.push_back({
 				{"id", client.id},
 				{"x", client.head.x},
-				{"y", client.head.y}
+				{"y", client.head.y},
+				{"length", client.body_len}
+			});
+		}
+
+		for(const auto& [id, food] : ctx.food_manager.get_all_food_contexts()){
+			dbg("[message_sender::send_player_join4] food_id : ", food.id);
+			foods.push_back({
+				{"id", food.id},
+				{"x", food.x},
+				{"y", food.y}
 			});
 		}
 	}
 
 	json wrapper;
 	wrapper["id"] = ctx.fd_to_id[fd];
-	wrapper["payloads"] = j;
+	wrapper["slitherPayloads"] = slithers;
+	wrapper["foodPayloads"] = foods;
 
 	std::string send_body = wrapper.dump();
 
@@ -91,8 +102,11 @@ void message_sender::send_chat(int fd, const std::string& body, ServerContext& c
 
 void message_sender::send_food_spawn(std::unordered_map<int, FoodContext>& new_foods, ServerContext& ctx){
 	dbg("[message_sender::send_food_spawn]");
+	if(new_foods.empty()) return;
+
 	json j = json::array();;
 	for(const auto& [id, food] : new_foods){
+		dbg("[message_sender::send_food_spawn] id : ", food.id, ", x : ", food.x, ", y : ", food.y);
 		j.push_back({
 			{"id", food.id},
 			{"x", food.x},
@@ -105,7 +119,7 @@ void message_sender::send_food_spawn(std::unordered_map<int, FoodContext>& new_f
 
 	std::string send_body = wrapper.dump();
 
-	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	//std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	for(int fd : ctx.client_fds)
 	{		
 		utils::send_queue(fd, MSG_FOOD_SPAWN, send_body, ctx);

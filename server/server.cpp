@@ -69,7 +69,7 @@ void Server::setup_epoll(){
 
 void Server::accept_client(){
 	dbg("[Server::accept_client]");
-	
+
 	epoll_event ev{};
 	sockaddr_in client_addr{};
 	socklen_t addr_len = sizeof(client_addr);
@@ -221,6 +221,8 @@ void Server::main_loop(){
 				dbg("[game_loop] server_mutex_ 시도");	
 				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 				dbg("[game_loop] server_mutex_ 완료");
+
+				// slither move logic
 				if(!ctx_.client_fds.empty()){
 					for(auto client_fd: ctx_.client_fds){
 						dbg("[game_loop] client_fd:", client_fd);
@@ -232,6 +234,9 @@ void Server::main_loop(){
 				else{
 					dbg("[game_loop] 대기 중 - 클라이언트 없음");
 				}
+
+				// food spawn logic
+				ctx_.food_manager.spawn_food_random(ctx_);
 			}			
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
 		}

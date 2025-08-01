@@ -25,6 +25,8 @@ public:
 
 	std::unordered_map<int, FoodContext>& get_all_food_contexts() { return food_contexts_;}
 	std::queue<int>& get_all_reusable_ids() { return reusable_ids_;}
+	bool empty_queue() {return reusable_ids_.empty(); }
+	int get_contexts_size() { return food_contexts_.size(); }
 
 	int pop_usable_id(ServerContext &ctx);
 	void push_usable_id(int food_id, ServerContext &ctx);
