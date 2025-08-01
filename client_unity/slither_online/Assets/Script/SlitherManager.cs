@@ -23,19 +23,19 @@ public class SlitherManager : MonoBehaviour
 
     public void InitSlither(bool isLocalPlayer, PlayerJoinPayload payload)
     {
-        DebugUtil.Dbg("[InitSlither] isLocalPlayer : ", isLocalPlayer);
+        DebugUtil.DbgTag("SEQUENCE", "[InitSlither] isLocalPlayer : ", isLocalPlayer);
         Vector2 spawnPos = new Vector2(payload.x, payload.y);
         GameObject slither = Instantiate(slitherPrefab, spawnPos, Quaternion.identity);
 
         Transform head = slither.transform.Find("Head");
         Transform bodyGroup = slither.transform.Find("BodyGroup");
-        DebugUtil.Dbg("[InitSlither] 오브젝트 생성  완료");
+
         if (head == null || bodyGroup == null)
         {
             Debug.LogError("Slither prefab 구조가 잘못되었습니다. Head 또는 BodyGroup이 없습니다.");
             return;
         }
-        DebugUtil.Dbg("[InitSlither] SlitherContext 생성 직전");
+
         SlitherContext context = new SlitherContext
         {
             rootObject = slither,
@@ -43,16 +43,17 @@ public class SlitherManager : MonoBehaviour
             bodyGroup = bodyGroup,
             bodyLen = payload.length
         };
-        DebugUtil.Dbg("[InitSlither] SlitherContext 생성 완료");
+
         if (isLocalPlayer)
         {
             gameManager.InitPlayer(slither);
+            var reporter = context.headObject.AddComponent<CollisionReporter>();
+            reporter.slitherManager = this;
         }
         slither.name = $"Player_{payload.id}";
         slither.GetComponent<IdHolder>().SetId(payload.id);
 
         players[payload.id] = context;
-        Debug.Log($"[Type : MSG_PLAYER_JOIN] payload.id : {payload.id}, payload.x : {payload.x}, payload.y : {payload.y}, slither : {slither}");
     }
 
     public void UpdateSlitherPos(MovePayload payload)
@@ -120,8 +121,9 @@ public class SlitherManager : MonoBehaviour
         }
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    public void OnHeadTriggerEnter(Collider2D other)
     {
+        DebugUtil.DbgTag("HIT", $"OnTriggerEnter2D : {other}");
         if (other.CompareTag("Food"))
         {
             int foodId = other.GetComponent<IdHolder>().GetId();

@@ -1,17 +1,34 @@
+using UnityEngine;
+using System.Text;
+using System.Collections.Generic;
+
 public static class DebugUtil
 {
     public static bool debugEnabled = true;
+    // MESSAGE, JOIN, NEW_JOIN, SEQUENCE, FOOD, HIT
+    private static readonly HashSet<string> excludedTags = new HashSet<string>
+    {
+        "MESSAGE"
+    };
 
+    // 일반 디버그 (태그 없이)
     public static void Dbg(params object[] args)
     {
-        if (!debugEnabled) return;
+        DbgTag("General", args);
+    }
 
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+    public static void DbgTag(string tag, params object[] args)
+    {
+        if (!debugEnabled) return;
+        if (excludedTags.Contains(tag)) return;
+
+        StringBuilder sb = new StringBuilder();
         foreach (var arg in args)
         {
-            sb.Append(arg);
+            sb.Append(arg != null ? arg.ToString() : "null");
         }
 
-        UnityEngine.Debug.Log(sb.ToString());
+        string message = $"[{tag}] {sb}";
+        Debug.Log(message);
     }
 }

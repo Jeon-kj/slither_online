@@ -9,7 +9,7 @@ public class FoodManager : MonoBehaviour
 
     public void ApplyFoodSpawn(FoodSpawnPayload payload)
     {
-        DebugUtil.Dbg("[ApplyFoodSpawn] id : ", payload.id);
+        DebugUtil.DbgTag("SEQUENCE", "[ApplyFoodSpawn] id : ", payload.id);
         Vector2 spawnPos = new Vector2(payload.x, payload.y);
         GameObject food = Instantiate(foodPrefab, spawnPos, Quaternion.identity);
         food.GetComponent<IdHolder>().SetId(payload.id);
@@ -20,7 +20,7 @@ public class FoodManager : MonoBehaviour
 
     public void ApplyFoodRemove(FoodRemovePayload payload)
     {
-        DebugUtil.Dbg("[ApplyFoodRemove] id : ", payload.id);
+        DebugUtil.DbgTag("SEQUENCE", "[ApplyFoodRemove] id : ", payload.id);
 
         if (!foods.ContainsKey(payload.id))
         {

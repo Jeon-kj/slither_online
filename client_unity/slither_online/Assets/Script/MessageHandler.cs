@@ -11,7 +11,7 @@ public class MessageHandler : MonoBehaviour
 
     public bool ProcessMessage(int type, string body)
     {
-        DebugUtil.Dbg("[ProcessMessage] type : ", type, ", body : ", body);
+        DebugUtil.DbgTag("MESSAGE", "[ProcessMessage] type : ", type, ", body : ", body);
         // 메시지 처리 ...
         switch ((MessageType)type)
         {
@@ -61,7 +61,7 @@ public class MessageHandler : MonoBehaviour
 
     public void HandlePlayerJoin(string body)
     {
-        DebugUtil.Dbg("[HandlePlayerJoin] body : ", body);
+        DebugUtil.DbgTag("JOIN", "[HandlePlayerJoin] body : ", body);
         // 모든 플레이어들의 데이터를 전달받음.
         // id,x,y 값이 든 데이터를 받아 오브젝트를 생성하고 현재 players에 정보 저장.
         // 처음 받는다면, 모든 플레이어들 생성.
@@ -72,24 +72,21 @@ public class MessageHandler : MonoBehaviour
         // 초기에는 그냥 머리에 대한 정보만 줘서 시간이 지날수록 업데이트 되도록 함
         if (body.Contains("slitherPayloads"))
         {
-            DebugUtil.Dbg("[HandlePlayerJoin] first if");
             var payloadList = JsonUtility.FromJson<PlayerJoinPayloadList>(body);
             gameManager.SetLocalPlayerId(payloadList.id);
 
             foreach (var payload in payloadList.slitherPayloads)
             {
-                DebugUtil.Dbg("[HandlePlayerJoin] payload : ", payload);
+                DebugUtil.DbgTag("JOIN", "[HandlePlayerJoin] payload : ", payload);
                 MainThreadDispatcher.Enqueue(() => {
-                    Debug.Log($"[MainThreadDispatcher] MainThreadDispatcher");
                     bool flag = payload.id == gameManager.GetLocalPlayerId();
                     slitherManager.InitSlither(flag, payload);
                 });
             }
             foreach (var payload in payloadList.foodPayloads)
             {
-                DebugUtil.Dbg("[HandlePlayerJoin] payload : ", payload);
+                DebugUtil.DbgTag("JOIN", "[HandlePlayerJoin] payload : ", payload);
                 MainThreadDispatcher.Enqueue(() => {
-                    Debug.Log($"[MainThreadDispatcher] MainThreadDispatcher");
                     foodManager.ApplyFoodSpawn(payload);
                 });
             }
@@ -97,9 +94,8 @@ public class MessageHandler : MonoBehaviour
         // 새로운 플레이어에 대한 정보를 받는 경우
         else
         {
-            DebugUtil.Dbg("[HandlePlayerJoin] else");
             var payload = JsonUtility.FromJson<PlayerJoinPayload>(body);
-            Debug.Log($"[Type : MSG_HELL] id:{payload.id}, x:{payload.x}, y:{payload.y}");
+            DebugUtil.DbgTag("NEW_PLAYER", $"[Type : MSG_HELL] id:{payload.id}, x:{payload.x}, y:{payload.y}");
 
             MainThreadDispatcher.Enqueue(() => {
                 slitherManager.InitSlither(false, payload);
@@ -120,14 +116,13 @@ public class MessageHandler : MonoBehaviour
 
     public void HandleFoodSpawn(string body)
     {
-        DebugUtil.Dbg("[HandleFoodSpawn]");
+        DebugUtil.DbgTag("SEQUENCE", "[HandleFoodSpawn]");
         var payloadList = JsonUtility.FromJson<FoodSpawnPayloadList>(body);
 
         foreach (var payload in payloadList.payloads)
         {
-            DebugUtil.Dbg("[HandleFoodSpawn] payload : ", payload);
+            DebugUtil.DbgTag("FOOD", "[HandleFoodSpawn] payload : ", payload);
             MainThreadDispatcher.Enqueue(() => {
-                Debug.Log($"[HandleFoodSpawn] MainThreadDispatcher");
                 foodManager.ApplyFoodSpawn(payload);
             });
         }
@@ -135,23 +130,21 @@ public class MessageHandler : MonoBehaviour
 
     public void HandleFoodRemove(string body)
     {
-        DebugUtil.Dbg("[HandleFoodRemove]");
+        DebugUtil.DbgTag("SEQUENCE", "[HandleFoodRemove]");
         var payload = JsonUtility.FromJson<FoodRemovePayload>(body);
 
-        DebugUtil.Dbg("[HandleFoodRemove] payload : ", payload);
+        DebugUtil.DbgTag("FOOD", "[HandleFoodRemove] payload : ", payload);
         MainThreadDispatcher.Enqueue(() => {
-            Debug.Log($"[HandleFoodRemove] MainThreadDispatcher");
             foodManager.ApplyFoodRemove(payload);
         });
     }
 
     public void HandleSlitherLengthUpdate(string body)
     {
-        DebugUtil.Dbg("[HandleSlitherLengthUpdate]");
+        DebugUtil.DbgTag("SEQUENCE", "[HandleSlitherLengthUpdate]");
         var payload = JsonUtility.FromJson<SlitherLengthUpdatePayload>(body);
 
         MainThreadDispatcher.Enqueue(() => {
-            Debug.Log($"[HandleSlitherLengthUpdate] MainThreadDispatcher");
             slitherManager.UpdateSlitherLength(payload.id, payload.length);
         });
     }

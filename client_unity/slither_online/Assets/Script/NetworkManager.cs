@@ -39,7 +39,7 @@ public class NetworkManager : MonoBehaviour
     {
         if (TryConnect())
         {
-            DebugUtil.Dbg("[Start] tryConnect()");
+            DebugUtil.DbgTag("SEQUENCE", "[Start] tryConnect()");
 
             Thread thread = new Thread(RunReceiver);
             thread.IsBackground = true;
@@ -87,7 +87,7 @@ public class NetworkManager : MonoBehaviour
     
     public void SendPlayerJoin()
     {
-        DebugUtil.Dbg("[SendPlayerJoin()]");
+        DebugUtil.DbgTag("SEQUENCE", "[SendPlayerJoin()]");
         int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_PLAYER_JOIN));
         byte[] headerType = BitConverter.GetBytes(type);
         int len = IPAddress.HostToNetworkOrder(0);
