@@ -9,18 +9,18 @@
 #include <random>
 
 void utils::error_handling(const std::string& msg){
-	dbg("[utils::error_handling]");
+	dbg_tag("SEQUENCE", "[utils::error_handling]");
 	std::cout << "[Error] : " << msg << std::endl;
 }
 
 int utils::set_nonblock(int fd){
-	dbg("[utils::set_nonblock]");
+	dbg_tag("SEQUENCE", "[utils::set_nonblock]");
 	int flags = fcntl(fd, F_GETFL, 0);
 	return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
 void utils::modify_epoll_events(int epoll_fd, int client_fd, uint32_t events) {
-	dbg("[utils::modify_epoll_events]");
+	dbg_tag("SEQUENCE", "[utils::modify_epoll_events]");
     epoll_event ev{};
     ev.events = events;
     ev.data.fd = client_fd;
@@ -31,7 +31,7 @@ void utils::modify_epoll_events(int epoll_fd, int client_fd, uint32_t events) {
 }
 
 void utils::send_queue(int fd, int32_t type, const std::string& body, ServerContext& ctx){
-	dbg("[utils::send_queue] type : ", type, ", body : ", body);
+	dbg_tag("SEQUENCE", "[utils::send_queue] type : ", type, ", body : ", body);
 	std::vector<char> packet;
 
 	int32_t type_net = htonl(type);
@@ -55,7 +55,7 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 }
 
 float utils::random_float(float min, float max) {
-	dbg("[utils::random_float]");
+	dbg_tag("SEQUENCE", "[utils::random_float]");
     static std::random_device rd;
     static std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist(min, max);

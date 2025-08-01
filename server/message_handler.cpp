@@ -12,7 +12,7 @@
 using json = nlohmann::json;
 
 bool message_handler::extract_message(int id, int32_t& type, std::string& body, ServerContext& ctx){
-	dbg("[message_handler::extract_message] id : ", id);
+	dbg_tag("SEQUENCE", "[message_handler::extract_message] id : ", id);
 	ClientContext& client = ctx.client_contexts[id];
 	auto& buffer = client.recv_buffer;
 	int32_t body_len;
@@ -46,7 +46,7 @@ void message_handler::handle_message(
 	const std::string& body, 
 	ServerContext& ctx)
 {
-	dbg("[message_handler::handle_message]");
+	dbg_tag("SEQUENCE", "[message_handler::handle_message]");
 	switch (type)
 	{
 		case MSG_PLAYER_JOIN:
@@ -84,7 +84,7 @@ void message_handler::handle_player_join(
 	const std::string& body, 
 	ServerContext& ctx)
 {
-	dbg("[message_handler::handle_player_join] id : ", id);
+	dbg_tag("SEQUENCE", "[message_handler::handle_player_join] id : ", id);
 	// body 안에는 아무것도 없음 (0byte)
 	// 정보를 설정해주고 id를 붙여서 다른 플레이어들에게 전송.
 	// 본인 정보와 다른 모든 플레이어들의 정보를 join한 플레이어에게 전송.
@@ -114,12 +114,11 @@ void message_handler::handle_player_left(
 	const std::string& body,
 	ServerContext& ctx)
 {
-	dbg("[message_handler::handle_player_left]");
+	dbg_tag("SEQUENCE", "[message_handler::handle_player_left]");
 	// 다른 클라이언트들에게 해당 클라이언트의 id를 전송.
 	// client_fds와 client_contexts에서 해당 데이터를 삭제 (Server::disconnect_client(fd))
 	int fd = ctx.client_contexts[id].fd;
 	message_sender::send_player_left(fd, body, ctx);
-	dbg("disconnect_client (handle_player_left)");
 	ctx.server()->disconnect_client(fd);
 }
 
@@ -128,25 +127,25 @@ void message_handler::handle_pos(const std::string& body){
 }
 
 void message_handler::handle_angle(int id, const std::string& body, ServerContext& ctx){
-	dbg("[message_handler::handle_angle]");
+	dbg_tag("ANGLE", "[message_handler::handle_angle]");
 	// {"angle": "string(float)"}
 	json j = json::parse(body);
 	float angle = j["angle"];
 	
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[id].angle = angle;
-	dbg("[handle_angle] ctx.client_contexts[id].angle : ", ctx.client_contexts[id].angle);
+	dbg_tag("ANGLE", "[handle_angle] ctx.client_contexts[id].angle : ", ctx.client_contexts[id].angle);
 }
 
 void message_handler::handle_chat(int id, const std::string& body, ServerContext& ctx){
-	dbg("[message_handler::handle_chat]");
+	dbg_tag("SEQUENCE", "[message_handler::handle_chat]");
 	// 단순 broad cast 아직 적합성 검사 미실시
 	int fd = ctx.client_contexts[id].fd;
 	message_sender::send_chat(fd, body, ctx);
 }
 
 void message_handler::handle_hit(int id, const std::string& body, ServerContext& ctx){
-	dbg("[message_handler::handle_hit]");
+	dbg_tag("SEQUENCE", "[message_handler::handle_hit]");
 	/*
 	struct MsgHitPayload {
 		int bodySlitherId;   // 충돌 대상의 고유 ID
@@ -168,7 +167,7 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 		Vector2 actual_head_pos(head_xy.x, head_xy.y);
 
 		if (actual_head_pos.distance_to(reported_point) > 3.0f) {
-			dbg("[handler_hit] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
+			dbg_tag("HIT", "[handler_hit] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
 			return;
 		}
 
@@ -176,7 +175,7 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 		for (const auto& segment : ctx.client_contexts[body_slither_id].body_segments) {
 			Vector2 segmentPos(segment.x, segment.y);
 			if (reported_point.distance_to(segmentPos) <= hit_tolerance) {
-				dbg("[handler_hit] 충돌 유효: (slither_id)", head_slither_id, "가 죽었습니다. (slither_id)", body_slither_id, "에 의해서.");
+				dbg_tag("HIT", "[handler_hit] 충돌 유효: (slither_id)", head_slither_id, "가 죽었습니다. (slither_id)", body_slither_id, "에 의해서.");
 				should_kill = true;			
 				break;
 			}
@@ -184,11 +183,11 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 	}
 	
 	if(should_kill) slither_manager::kill_slither(head_slither_id, ctx);
-    dbg("[handler_hit] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");
+    dbg_tag("HIT", "[handler_hit] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");
 }
 
 void message_handler::handle_eat(int id, const std::string& body, ServerContext& ctx){
-	dbg("[message_handler::handle_eat]");
+	dbg_tag("EAT", "[message_handler::handle_eat]");
 	/*
 	struct MsgEatPayload {
 		int food_id;
@@ -211,7 +210,7 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
     Vector2 actual_head_pos(head_xy.x, head_xy.y);
 
     if (actual_head_pos.distance_to(reported_point) > 3.0f) {
-        dbg("[handler_eat] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
+        dbg_tag("EAT", "[handler_eat] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
         return;
     }
 
@@ -221,7 +220,7 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 	constexpr float eat_tolerance = 1.5f;
 
 	if (reported_point.distance_to(food_pos) <= eat_tolerance) {
-		dbg("[handler_eat] 충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
+		dbg_tag("EAT", "[handler_eat] 충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
 		slither_manager::grow(slither_id, ctx);
 		slither_manager::update_body_len(slither_id, ctx);
 		ctx.food_manager.del_food(food_id, ctx);
@@ -230,5 +229,5 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 		return;
 	}
 
-	dbg("[handler_eat] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");	
+	dbg_tag("EAT", "[handler_eat] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");	
 }

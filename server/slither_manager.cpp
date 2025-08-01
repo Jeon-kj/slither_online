@@ -8,7 +8,7 @@
 using json = nlohmann::json;
 
 void slither_manager::move_client(int id, float delta_time, float speed, ServerContext& ctx){
-	dbg("[slither_manager::move_client]");
+	dbg_tag("SLITHER_MOVE", "[slither_manager::move_client]");
 	ClientContext& client = ctx.client_contexts[id];
 
 	float dx = std::cos(client.angle) * speed * delta_time;

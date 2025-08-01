@@ -8,12 +8,12 @@
 #include <random>
 
 void FoodManager::spawn_food_random(ServerContext& ctx){
-	dbg("[FoodManager::spawn_food_random]");
+	dbg_tag("SEQUENCE", "[FoodManager::spawn_food_random]");
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
 
 	std::unordered_map<int, FoodContext> new_foods;
 	while(food_contexts.size()<GameConfig::INIT_FOOD_COUNT){
-		dbg("[FoodManager::spawn_food_random] food_contexts.size() : ", food_contexts.size(), ", GameConfig::INIT_FOOD_COUNT : ", GameConfig::INIT_FOOD_COUNT);
+		dbg_tag("FOOD", "[FoodManager::spawn_food_random] food_contexts.size() : ", food_contexts.size(), ", GameConfig::INIT_FOOD_COUNT : ", GameConfig::INIT_FOOD_COUNT);
 		float x = utils::random_float(-GameConfig::MAP_WIDTH/2, GameConfig::MAP_WIDTH/2);
 		float y = utils::random_float(-GameConfig::MAP_HEIGHT/2, GameConfig::MAP_HEIGHT/2);
 
@@ -26,7 +26,7 @@ void FoodManager::spawn_food_random(ServerContext& ctx){
 }
 
 void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
-	dbg("[FoodManager::spawn_food_on_death] dead_id : ", dead_id);
+	dbg_tag("SEQUENCE", "[FoodManager::spawn_food_on_death] dead_id : ", dead_id);
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
 	ClientContext& dead_client = ctx.client_contexts[dead_id];
 
@@ -58,7 +58,7 @@ void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 }
 
 void FoodManager::del_food(int food_id, ServerContext &ctx){
-	dbg("[FoodManager::del_food] food_id : ", food_id);
+	dbg_tag("SEQUENCE", "[FoodManager::del_food] food_id : ", food_id);
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
 	food_contexts.erase(food_id);
 	push_usable_id(food_id, ctx);
@@ -67,9 +67,9 @@ void FoodManager::del_food(int food_id, ServerContext &ctx){
 }
 
 int FoodManager::pop_usable_id(ServerContext &ctx){
-	dbg("[FoodManager::pop_usable_id]");
+	dbg_tag("SEQUENCE", "[FoodManager::pop_usable_id]");
 	if(ctx.food_manager.empty_queue()) return ctx.food_manager.get_contexts_size();
-	
+
 	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
 	int food_id = reusable_ids.front();
 	reusable_ids.pop();
@@ -77,7 +77,7 @@ int FoodManager::pop_usable_id(ServerContext &ctx){
 }
 
 void FoodManager::push_usable_id(int food_id, ServerContext &ctx){
-	dbg("[FoodManager::push_usable_id]");
+	dbg_tag("SEQUENCE", "[FoodManager::push_usable_id]");
 	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
 	reusable_ids.push(food_id);
 }

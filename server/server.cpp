@@ -28,7 +28,7 @@ Server::~Server(){
 }
 
 void Server::start(){
-	dbg("[Server::start]");
+	dbg_tag("SEQUENCE", "[Server::start]");
 	setup_server_socket();
 	setup_epoll();
 	running_ = true;
@@ -36,12 +36,12 @@ void Server::start(){
 }
 
 void Server::stop(){
-	dbg("[Server::stop]");
+	dbg_tag("SEQUENCE", "[Server::stop]");
 	running_ = false;
 }
 
 void Server::setup_server_socket(){
-	dbg("[Server::setup_server_socket]");
+	dbg_tag("SEQUENCE", "[Server::setup_server_socket]");
 	server_fd_ = socket(AF_INET, SOCK_STREAM, 0);
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
@@ -57,7 +57,7 @@ void Server::setup_server_socket(){
 }
 
 void Server::setup_epoll(){
-	dbg("[Server::setup_epoll]");
+	dbg_tag("SEQUENCE", "[Server::setup_epoll]");
 	epoll_fd_ = epoll_create1(0);
 	epoll_event ev{};
 	ev.events = EPOLLIN;
@@ -68,7 +68,7 @@ void Server::setup_epoll(){
 }
 
 void Server::accept_client(){
-	dbg("[Server::accept_client]");
+	dbg_tag("SEQUENCE", "[Server::accept_client]");
 
 	epoll_event ev{};
 	sockaddr_in client_addr{};
@@ -98,12 +98,12 @@ void Server::accept_client(){
 }
 
 void Server::handle_read(int fd){
-	dbg("[Server::handle_read]");
+	dbg_tag("SEQUENCE", "[Server::handle_read]");
 	char buf[1024];
 	while(true)	{
 		ssize_t n = recv(fd, buf, sizeof(buf), 0);
 		if(n > 0){
-			dbg("[handle_read] n > 0");
+			dbg_tag("SEQUENCE", "[handle_read] n > 0");
 			{
 				//std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 				int client_id = ctx_.fd_to_id[fd];
@@ -130,15 +130,14 @@ void Server::handle_read(int fd){
 			}
 		}
 		else if(n == 0){
-			dbg("[handle_read] n == 0");
+			dbg_tag("SEQUENCE", "[handle_read] n == 0");
 			disconnect_client(fd);
 			break;
 		}
 		else {
-			dbg("[handle_read] else, n : ", n);
+			dbg_tag("SEQUENCE", "[handle_read] else, n : ", n);
 			if(errno == EAGAIN || errno == EWOULDBLOCK) break;
 
-			dbg("disconnect_client (handle_read)");
 			disconnect_client(fd);
 			break;
 		}
@@ -146,7 +145,7 @@ void Server::handle_read(int fd){
 }
 
 void Server::handle_write(int fd){
-	dbg("[Server::handle_write]");
+	dbg_tag("SEQUENCE", "[Server::handle_write]");
 	bool should_disconnect = false;
 
 	{
@@ -188,7 +187,7 @@ void Server::handle_write(int fd){
 }
 
 void Server::main_loop(){
-	dbg("[Server::main_loop]");
+	dbg_tag("SEQUENCE", "[Server::main_loop]");
 	constexpr int MAX_EVENTS = 10;
 
 	epoll_event events[MAX_EVENTS];
@@ -218,21 +217,21 @@ void Server::main_loop(){
 	auto game_loop = [&](){
 		while(running_){
 			{
-				dbg("[game_loop] server_mutex_ 시도");	
+				dbg_tag("LOCK", "[game_loop] server_mutex_ 시도");	
 				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-				dbg("[game_loop] server_mutex_ 완료");
+				dbg_tag("LOCK","[game_loop] server_mutex_ 완료");
 
 				// slither move logic
 				if(!ctx_.client_fds.empty()){
 					for(auto client_fd: ctx_.client_fds){
-						dbg("[game_loop] client_fd:", client_fd);
+						dbg_tag("SLITHER_MOVE", "[game_loop] client_fd:", client_fd);
 						int client_id = ctx_.fd_to_id[client_fd];
 						slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);
 						message_sender::send_pos(client_fd, ctx_);
 					}				
 				}
 				else{
-					dbg("[game_loop] 대기 중 - 클라이언트 없음");
+					dbg_tag("SLITHER_MOVE", "[game_loop] 대기 중 - 클라이언트 없음");
 				}
 
 				// food spawn logic
@@ -250,7 +249,7 @@ void Server::main_loop(){
 }
 
 void Server::disconnect_client(int fd){
-	dbg("[Server::disconnect_client]");
+	dbg_tag("SEQUENCE", "[Server::disconnect_client]");
 	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
 	close(fd);
