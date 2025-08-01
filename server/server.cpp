@@ -28,7 +28,7 @@ Server::~Server(){
 }
 
 void Server::start(){
-	dbg("Server start");
+	dbg("[Server::start]");
 	setup_server_socket();
 	setup_epoll();
 	running_ = true;
@@ -36,11 +36,12 @@ void Server::start(){
 }
 
 void Server::stop(){
-	dbg("Server stop");
+	dbg("[Server::stop]");
 	running_ = false;
 }
 
 void Server::setup_server_socket(){
+	dbg("[Server::setup_server_socket]");
 	server_fd_ = socket(AF_INET, SOCK_STREAM, 0);
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
@@ -56,6 +57,7 @@ void Server::setup_server_socket(){
 }
 
 void Server::setup_epoll(){
+	dbg("[Server::setup_epoll]");
 	epoll_fd_ = epoll_create1(0);
 	epoll_event ev{};
 	ev.events = EPOLLIN;
@@ -66,14 +68,15 @@ void Server::setup_epoll(){
 }
 
 void Server::accept_client(){
-	dbg("accept_client join");
+	dbg("[Server::accept_client]");
+	
 	epoll_event ev{};
 	sockaddr_in client_addr{};
 	socklen_t addr_len = sizeof(client_addr);
 
 	int client_fd = accept(server_fd_, (sockaddr*)&client_addr, &addr_len);
 	if(client_fd == -1) utils::error_handling("accept error");
-
+	
 	utils::set_nonblock(client_fd);
 
 	ev.events = EPOLLIN;
@@ -85,17 +88,17 @@ void Server::accept_client(){
 		std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 		ctx_.client_contexts.emplace(
 			client_fd,
-			ClientContext{client_fd}
+			ClientContext{client_fd, client_fd}
 		);
 		ctx_.client_fds.push_back(client_fd);
 		ctx_.fd_to_id[client_fd] = client_fd;
 	}
-	
+
 	std::cout << "Client connected: " << client_fd << std::endl;
 }
 
 void Server::handle_read(int fd){
-	dbg("handle_read join");
+	dbg("[Server::handle_read]");
 	char buf[1024];
 	while(true)	{
 		ssize_t n = recv(fd, buf, sizeof(buf), 0);
@@ -143,7 +146,7 @@ void Server::handle_read(int fd){
 }
 
 void Server::handle_write(int fd){
-	dbg("handle_write join");
+	dbg("[Server::handle_write]");
 	bool should_disconnect = false;
 
 	{
@@ -185,6 +188,7 @@ void Server::handle_write(int fd){
 }
 
 void Server::main_loop(){
+	dbg("[Server::main_loop]");
 	constexpr int MAX_EVENTS = 10;
 
 	epoll_event events[MAX_EVENTS];
@@ -241,6 +245,7 @@ void Server::main_loop(){
 }
 
 void Server::disconnect_client(int fd){
+	dbg("[Server::disconnect_client]");
 	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
 	close(fd);

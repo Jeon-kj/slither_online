@@ -13,9 +13,9 @@ struct SlitherSegment{
 
 struct ClientContext{
 	int fd;
+	int id;
+
 	std::vector<char> recv_buffer;
-	
-	int id;	
 	float angle;
 	std::string turn_dir;
 
@@ -26,4 +26,7 @@ struct ClientContext{
 	int body_len;
 
 	std::deque<std::vector<char>> send_queue;
+
+	ClientContext() = default;
+	ClientContext(int fd_, int id_) : fd(fd_), id(id_) {}
 };

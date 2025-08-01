@@ -12,7 +12,7 @@
 using json = nlohmann::json;
 
 bool message_handler::extract_message(int id, int32_t& type, std::string& body, ServerContext& ctx){
-	dbg("[extract_message]");
+	dbg("[message_handler::extract_message] id : ", id);
 	ClientContext& client = ctx.client_contexts[id];
 	auto& buffer = client.recv_buffer;
 	int32_t body_len;
@@ -46,40 +46,34 @@ void message_handler::handle_message(
 	const std::string& body, 
 	ServerContext& ctx)
 {
+	dbg("[message_handler::handle_message]");
 	switch (type)
 	{
 		case MSG_PLAYER_JOIN:
-			dbg("[handle_message] MSG_PLAYER_JOIN");
 			message_handler::handle_player_join(id, body, ctx);
 			break;
 		
 		case MSG_PLAYER_LEFT:
-			dbg("[handle_message] MSG_PLAYER_LEFT");
 			message_handler::handle_player_left(id, body, ctx);
 			break;
 
 		case MSG_POS:
-			dbg("[handle_message] MSG_POS");
 			message_handler::handle_pos(body);
 			break;
 
 		case MSG_ANGLE:
-			dbg("[handle_message] MSG_ANGLE");
 			message_handler::handle_angle(id, body, ctx);
 			break;
 
 		case MSG_CHAT:
-			dbg("[handle_message] MSG_CHAT");
 			message_handler::handle_chat(id, body, ctx);
 			break;
 
 		case MSG_HIT:
-			dbg("[handle_message] MSG_CHAT");
 			message_handler::handle_hit(id, body, ctx);
 			break;
 
 		case MSG_EAT:
-			dbg("[handle_message] MSG_CHAT");
 			message_handler::handle_eat(id, body, ctx);
 			break;
 	}
@@ -90,7 +84,7 @@ void message_handler::handle_player_join(
 	const std::string& body, 
 	ServerContext& ctx)
 {
-	dbg("[handle_player_join]");
+	dbg("[message_handler::handle_player_join] id : ", id);
 	// body 안에는 아무것도 없음 (0byte)
 	// 정보를 설정해주고 id를 붙여서 다른 플레이어들에게 전송.
 	// 본인 정보와 다른 모든 플레이어들의 정보를 join한 플레이어에게 전송.
@@ -110,8 +104,8 @@ void message_handler::handle_player_join(
 		j["x"] = client.head.x;
 		j["y"] = client.head.y;
 	}
-	
-	int fd = ctx.client_contexts[fd].id;
+
+	int fd = ctx.client_contexts[id].fd;
 	message_sender::send_player_join(fd, j.dump(), ctx);
 }
 
@@ -120,6 +114,7 @@ void message_handler::handle_player_left(
 	const std::string& body,
 	ServerContext& ctx)
 {
+	dbg("[message_handler::handle_player_left]");
 	// 다른 클라이언트들에게 해당 클라이언트의 id를 전송.
 	// client_fds와 client_contexts에서 해당 데이터를 삭제 (Server::disconnect_client(fd))
 	int fd = ctx.client_contexts[id].fd;
@@ -133,10 +128,10 @@ void message_handler::handle_pos(const std::string& body){
 }
 
 void message_handler::handle_angle(int id, const std::string& body, ServerContext& ctx){
+	dbg("[message_handler::handle_angle]");
 	// {"angle": "string(float)"}
-	dbg("[handle_angle]");
 	json j = json::parse(body);
-	float angle = std::stof(static_cast<std::string>(j["angle"]));
+	float angle = j["angle"];
 	
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[id].angle = angle;
@@ -144,12 +139,14 @@ void message_handler::handle_angle(int id, const std::string& body, ServerContex
 }
 
 void message_handler::handle_chat(int id, const std::string& body, ServerContext& ctx){
+	dbg("[message_handler::handle_chat]");
 	// 단순 broad cast 아직 적합성 검사 미실시
 	int fd = ctx.client_contexts[id].fd;
 	message_sender::send_chat(fd, body, ctx);
 }
 
 void message_handler::handle_hit(int id, const std::string& body, ServerContext& ctx){
+	dbg("[message_handler::handle_hit]");
 	/*
 	struct MsgHitPayload {
 		int bodySlitherId;   // 충돌 대상의 고유 ID
@@ -158,9 +155,9 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 	}*/
 	json j = json::parse(body);
 	int head_slither_id = id;
-	int body_slither_id = std::stoi(static_cast<std::string>(j["bodySlitherId"]));
-	float reported_x = std::stof(static_cast<std::string>(j["reportedX"]));
-	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
+	int body_slither_id = j["bodySlitherId"];
+	float reported_x = j["reportedX"];
+	float reported_y = j["reportedY"];
 
 	bool should_kill = false;
 	{
@@ -191,6 +188,7 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 }
 
 void message_handler::handle_eat(int id, const std::string& body, ServerContext& ctx){
+	dbg("[message_handler::handle_eat]");
 	/*
 	struct MsgEatPayload {
 		int food_id;
@@ -200,9 +198,9 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 
 	json j = json::parse(body);
 	int slither_id = id;
-	int food_id = std::stoi(static_cast<std::string>(j["foodId"]));
-	float reported_x = std::stof(static_cast<std::string>(j["reportedX"]));
-	float reported_y = std::stof(static_cast<std::string>(j["reportedY"]));
+	int food_id = j["foodId"];
+	float reported_x = j["reportedX"];
+	float reported_y = j["reportedY"];
 
     Vector2 reported_point(reported_x, reported_y);
 	SlitherSegment head_xy;

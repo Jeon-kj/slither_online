@@ -2,6 +2,7 @@
 #include "debug.hpp"
 
 int main(){
+	dbg("[main]");
 	int port = 12345;
 	ServerContext ctx;
 	Server server(port, ctx);

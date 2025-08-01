@@ -3,10 +3,12 @@
 #include "utils.hpp"
 #include "game_config.hpp"
 #include "message_sender.hpp"
+#include "debug.hpp"
 
 #include <random>
 
 void FoodManager::spawn_food_random(ServerContext& ctx){
+	dbg("[FoodManager::spawn_food_random]");
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
 
 	std::unordered_map<int, FoodContext> new_foods;
@@ -23,6 +25,7 @@ void FoodManager::spawn_food_random(ServerContext& ctx){
 }
 
 void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
+	dbg("[FoodManager::spawn_food_on_death] dead_id : ", dead_id);
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
 	ClientContext& dead_client = ctx.client_contexts[dead_id];
 
@@ -54,6 +57,7 @@ void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 }
 
 void FoodManager::del_food(int food_id, ServerContext &ctx){
+	dbg("[FoodManager::del_food] food_id : ", food_id);
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
 	food_contexts.erase(food_id);
 	push_usable_id(food_id, ctx);
@@ -62,6 +66,7 @@ void FoodManager::del_food(int food_id, ServerContext &ctx){
 }
 
 int FoodManager::pop_usable_id(ServerContext &ctx){
+	dbg("[FoodManager::pop_usable_id]");
 	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
 	int food_id = reusable_ids.front();
 	reusable_ids.pop();
@@ -69,6 +74,7 @@ int FoodManager::pop_usable_id(ServerContext &ctx){
 }
 
 void FoodManager::push_usable_id(int food_id, ServerContext &ctx){
+	dbg("[FoodManager::push_usable_id]");
 	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
 	reusable_ids.push(food_id);
 }

@@ -8,7 +8,7 @@
 using json = nlohmann::json;
 
 void slither_manager::move_client(int id, float delta_time, float speed, ServerContext& ctx){
-	dbg("[move_client]");
+	dbg("[slither_manager::move_client]");
 	ClientContext& client = ctx.client_contexts[id];
 
 	float dx = std::cos(client.angle) * speed * delta_time;
@@ -32,6 +32,7 @@ void slither_manager::move_client(int id, float delta_time, float speed, ServerC
 }
 
 void slither_manager::grow(int id, ServerContext& ctx){
+	dbg("[slither_manager::grow]");
 	ClientContext& client = ctx.client_contexts[id];
 
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
@@ -41,6 +42,7 @@ void slither_manager::grow(int id, ServerContext& ctx){
 }
 
 void slither_manager::trim(int id, ServerContext& ctx){
+	dbg("[slither_manager::trim]");
 	ClientContext& client = ctx.client_contexts[id];
 
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
@@ -50,11 +52,13 @@ void slither_manager::trim(int id, ServerContext& ctx){
 }
 
 void slither_manager::update_body_len(int id, ServerContext &ctx){
+	dbg("[slither_manager::update_body_len]");
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[id].body_len = ctx.client_contexts[id].body_segments.size();
 }
 
 void slither_manager::kill_slither(int target_id, ServerContext& ctx){
+	dbg("[slither_manager::kill_slither]");
 	// Slither 위치에 먹이 생성 + 먹이 생성 전송
 	ctx.food_manager.spawn_food_on_death(target_id, ctx);
 
