@@ -15,7 +15,8 @@ namespace Slither.Protocol
     public struct PlayerJoinPayloadList
     {
         public int id;
-        public PlayerJoinPayload[] payloads;
+        public PlayerJoinPayload[] slitherPayloads;
+        public FoodSpawnPayload[] foodPayloads;
     }
 
     [Serializable]

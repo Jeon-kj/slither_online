@@ -70,19 +70,27 @@ public class MessageHandler : MonoBehaviour
         // 이 경우는 slither의 body segments는 어떻게 업데이트 하지?
         // 왜냐하면, 서버에서는 head에 대한 정보밖에 주지 않으니까.
         // 초기에는 그냥 머리에 대한 정보만 줘서 시간이 지날수록 업데이트 되도록 함
-        if (body.TrimStart().StartsWith("{\"id\""))
+        if (body.Contains("slitherPayloads"))
         {
             DebugUtil.Dbg("[HandlePlayerJoin] first if");
             var payloadList = JsonUtility.FromJson<PlayerJoinPayloadList>(body);
             gameManager.SetLocalPlayerId(payloadList.id);
 
-            foreach (var payload in payloadList.payloads)
+            foreach (var payload in payloadList.slitherPayloads)
             {
                 DebugUtil.Dbg("[HandlePlayerJoin] payload : ", payload);
                 MainThreadDispatcher.Enqueue(() => {
                     Debug.Log($"[MainThreadDispatcher] MainThreadDispatcher");
                     bool flag = payload.id == gameManager.GetLocalPlayerId();
                     slitherManager.InitSlither(flag, payload);
+                });
+            }
+            foreach (var payload in payloadList.foodPayloads)
+            {
+                DebugUtil.Dbg("[HandlePlayerJoin] payload : ", payload);
+                MainThreadDispatcher.Enqueue(() => {
+                    Debug.Log($"[MainThreadDispatcher] MainThreadDispatcher");
+                    foodManager.ApplyFoodSpawn(payload);
                 });
             }
         }
