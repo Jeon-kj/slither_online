@@ -91,6 +91,7 @@ public class SlitherManager : MonoBehaviour
 
     public void UpdateSlitherLength(int id, int length)
     {
+        DebugUtil.DbgTag("SEQUENCE", "[UpdateSlitherLength]");
         if (!ContainsId(id))
         {
             return; 

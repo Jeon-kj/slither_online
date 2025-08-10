@@ -80,7 +80,7 @@ public class MessageHandler : MonoBehaviour
                 DebugUtil.DbgTag("JOIN", "[HandlePlayerJoin] payload : ", payload);
                 MainThreadDispatcher.Enqueue(() => {
                     bool flag = payload.id == gameManager.GetLocalPlayerId();
-                    slitherManager.InitSlither(flag, payload);
+                    slitherManager.InitSlither(flag, payload);                    
                 });
             }
             foreach (var payload in payloadList.foodPayloads)
@@ -116,7 +116,7 @@ public class MessageHandler : MonoBehaviour
 
     public void HandleFoodSpawn(string body)
     {
-        DebugUtil.DbgTag("SEQUENCE", "[HandleFoodSpawn]");
+        DebugUtil.DbgTag("SEQUENCE", "[HandleFoodSpawn] body: ", body);
         var payloadList = JsonUtility.FromJson<FoodSpawnPayloadList>(body);
 
         foreach (var payload in payloadList.payloads)
