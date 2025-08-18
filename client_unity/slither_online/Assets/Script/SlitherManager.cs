@@ -1,8 +1,9 @@
+using Slither.Protocol;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using static NetworkManager;
 using static UnityEditor.Experimental.GraphView.GraphView;
-using Slither.Protocol;
 
 public class SlitherManager : MonoBehaviour
 {
@@ -12,6 +13,8 @@ public class SlitherManager : MonoBehaviour
     Dictionary<int, SlitherContext> players = new Dictionary<int, SlitherContext>();
     public GameObject slitherPrefab; // 유니티에서 프리팹으로 연결
     public GameObject bodyPrefab;
+
+    public float space = 0.5f;
 
     public void AddPlayer(int id, SlitherContext context) { players[id] = context; }
     public void RemovePlayer(int id) { players.Remove(id); }
@@ -36,18 +39,13 @@ public class SlitherManager : MonoBehaviour
             return;
         }
 
-        SlitherContext context = new SlitherContext
-        {
-            rootObject = slither,
-            headObject = head.gameObject,
-            bodyGroup = bodyGroup,
-            bodyLen = payload.length
-        };
+        SlitherContext context = new SlitherContext();
+        context.Init(slither, head.gameObject, bodyGroup, payload.length, spawnPos);
 
         if (isLocalPlayer)
         {
             gameManager.InitPlayer(slither);
-            var reporter = context.headObject.AddComponent<CollisionReporter>();
+            var reporter = context.GetHeadObject().AddComponent<CollisionReporter>();
             reporter.slitherManager = this;
         }
         slither.name = $"Player_{payload.id}";
@@ -56,36 +54,114 @@ public class SlitherManager : MonoBehaviour
         players[payload.id] = context;
     }
 
+    void AppendSample(SlitherContext slither, Vector2 newPos)
+    {
+        LinkedList<(Vector2 pos, float cumLen)> path = slither.GetPath();
+
+        if (path.Count == 0)
+        {
+            path.AddLast((newPos, 0f));
+            slither.SetHeadPos(newPos);
+            return;
+        }
+        var last = path.Last!.Value;
+        float d = (newPos - last.pos).magnitude;
+        if (d <= 0.0) return;          // 정지/노이즈면 스킵 가능
+
+        path.AddLast((newPos, last.cumLen + d));   // 누적 길이 추가
+        slither.SetHeadPos(newPos);
+    }
+
+    int TrimToPhysicalLen(SlitherContext slither, float physicalLen)
+    {
+        LinkedList<(Vector2 pos, float cumLen)> path = slither.GetPath();
+        List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors = slither.GetCursors();
+
+        if (path.Count < 2) return 0;
+        float headCumLen = path.Last!.Value.cumLen;
+        float keepFrom = headCumLen - physicalLen;
+        int trimmed = 0;
+
+        // 왜 First가 아닌 First.Next와 비교를 할까?
+        // -> First는 이론상 Slither의 꼬리. 꼬리를 다음으로 넘겨도 되겠다 싶을 때, 먼저 넘기고 지우기 위함.
+        while (path.Count >= 2 && path.First!.Next!.Value.cumLen < keepFrom)
+        {
+            // 커서가 제거될 노드를 가리키면 먼저 다음으로 올려 붙임
+            for (int i = 0; i < cursors.Count; i++)
+                if (cursors[i] == path.First) cursors[i] = path.First.Next!;
+
+            path.RemoveFirst();
+            trimmed++;
+        }
+        return trimmed;
+
+    }
+
+    // 간격 맞추기 (i번째 세그 목표 = 헤드에서 (i+1)*spacing 뒤)
+    void AdvanceCursorToTarget(SlitherContext slither, int i)
+    {
+        LinkedList<(Vector2 pos, float cumLen)> path = slither.GetPath();
+        List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors = slither.GetCursors();
+        List<GameObject> bodySegments = slither.GetBodySegments();
+
+        var lastNode = path.Last!;
+        float headCumLen = lastNode.Value.cumLen;
+
+        float targetCumLen = headCumLen - (i + 1) * space;
+        if (path.First != null)
+            targetCumLen = Mathf.Max(targetCumLen, path.First.Value.cumLen); // 경계 클램프
+
+        var node = cursors[i];
+        while (node != lastNode && node.Value.cumLen < targetCumLen)
+            node = node.Next!;
+        cursors[i] = node;
+
+        bodySegments[i].transform.position = node.Value.pos;
+    }
+
     public void UpdateSlitherPos(MovePayload payload)
     {
         if (!ContainsId(payload.id))
         {
             return;
         }
+        Vector2 newPos = new Vector2(payload.x, payload.y);
 
         SlitherContext slither = players[payload.id];
 
-        // 꼬리(body) 위치 갱신
-        for (int i = slither.bodySegments.Count - 1; i > 0; i--)
+        List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors = slither.GetCursors();
+
+        // 수신된 좌표 path에 저장
+        AppendSample(slither, newPos);
+
+        int bodyLen = slither.GetBodyLen(); // 몸길이
+        float physicalLen = space * bodyLen;   // 간격을 포함한 slither의 물리적 총 길이
+
+        TrimToPhysicalLen(slither, physicalLen);
+
+        // bodySegment들의 간격을 맞춰 위치 갱신
+        // 그런데 마지막 요소만 거리계산해도 되지 않을까? (개선사항)
+        int cursorIndex = 0;
+        while (cursorIndex < cursors.Count)
         {
-            slither.bodySegments[i].transform.position = slither.bodySegments[i - 1].transform.position;
+            AdvanceCursorToTarget(slither, cursorIndex);
+
+            cursorIndex++;
         }
-        if (slither.bodySegments.Count > 0)
-        {
-            slither.bodySegments[0].transform.position = slither.headObject.transform.position;
-        }
-        // head 위치 갱신
-        slither.headObject.transform.position = new Vector2(payload.x, payload.y);
-        slither.rootObject.transform.position = new Vector2(payload.x, payload.y);
     }
 
     public void DelSCtx(int id, SlitherContext sCtx)
     {
-        Destroy(sCtx.headObject);
-        foreach (var segment in sCtx.bodySegments)
+        GameObject rootObject = sCtx.GetRootObject();
+        GameObject headObject = sCtx.GetHeadObject();
+        List<GameObject> bodySegments = sCtx.GetBodySegments();
+
+        Destroy(headObject);
+        foreach (var segment in bodySegments)
         {
             Destroy(segment);
         }
+        Destroy(rootObject);
         players.Remove(id);
     }
 
@@ -96,29 +172,39 @@ public class SlitherManager : MonoBehaviour
         {
             return; 
         }
-        
-        players[id].bodyLen = length;
 
         SlitherContext slither = players[id];
 
-        while (slither.bodySegments.Count < slither.bodyLen)
+        slither.SetBodyLen(length);
+        
+        List<GameObject> bodySegments = slither.GetBodySegments();
+        LinkedList<(Vector2 pos, float cumLen)> path = slither.GetPath();
+        List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors = slither.GetCursors();
+        Transform bodyGroup = slither.GetBodyGroup();
+
+        // 길이가 늘었을 경우
+        while (bodySegments.Count < length)
         {
             var segment = Instantiate(bodyPrefab);
-            Vector2 pos;
-            if (slither.bodySegments.Count > 0)
-                pos = slither.bodySegments[slither.bodySegments.Count - 1].transform.position;
-            else pos = slither.headObject.transform.position;
+
+            var node = path.First;
+
+            cursors.Add(node);
+            Vector2 pos = node.Value.pos;
 
             segment.transform.position = pos;
-            segment.transform.SetParent(slither.bodyGroup);
-            slither.bodySegments.Add(segment);
+            segment.transform.SetParent(bodyGroup);
+            bodySegments.Add(segment);
         }
+
         // 길이가 줄었을 경우
-        while (slither.bodySegments.Count > slither.bodyLen)
+        while (bodySegments.Count > length)
         {
-            var lastSegment = slither.bodySegments[slither.bodySegments.Count - 1];
+            var lastSegment = bodySegments[bodySegments.Count - 1];
             GameObject.Destroy(lastSegment);
-            slither.bodySegments.RemoveAt(slither.bodySegments.Count - 1);
+            bodySegments.RemoveAt(bodySegments.Count - 1);
+
+            cursors.RemoveAt(cursors.Count-1);
         }
     }
 

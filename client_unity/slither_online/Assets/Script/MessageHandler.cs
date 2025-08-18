@@ -80,7 +80,7 @@ public class MessageHandler : MonoBehaviour
                 DebugUtil.DbgTag("JOIN", "[HandlePlayerJoin] payload : ", payload);
                 MainThreadDispatcher.Enqueue(() => {
                     bool flag = payload.id == gameManager.GetLocalPlayerId();
-                    slitherManager.InitSlither(flag, payload);                    
+                    slitherManager.InitSlither(flag, payload);
                 });
             }
             foreach (var payload in payloadList.foodPayloads)

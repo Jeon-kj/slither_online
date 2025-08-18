@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public static class DebugUtil
 {
     public static bool debugEnabled = true;
-    // MESSAGE, JOIN, NEW_JOIN, SEQUENCE, FOOD, HIT
+    // MESSAGE, JOIN, NEW_JOIN, SEQUENCE, FOOD, HIT, POSITION, SLITHER
     private static readonly HashSet<string> excludedTags = new HashSet<string>
     {
         "MESSAGE"
