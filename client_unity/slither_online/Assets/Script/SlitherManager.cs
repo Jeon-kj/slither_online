@@ -222,11 +222,12 @@ public class SlitherManager : MonoBehaviour
         {
             int myId = gameManager.GetLocalPlayerId();
             int targetId = other.transform.parent.parent.GetComponent<IdHolder>().GetId();
+            Vector2 hitPos = other.ClosestPoint(transform.position);
 
             if (myId == targetId)
                 return; // 내 body와 충돌 → 무시
 
-            networkManager.SendHit(targetId, transform.position);
+            networkManager.SendHit(targetId, hitPos);
         }
     }
 }
