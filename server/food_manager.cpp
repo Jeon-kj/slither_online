@@ -17,8 +17,9 @@ void FoodManager::spawn_food_random(ServerContext& ctx){
 		float x = utils::random_float(-GameConfig::MAP_WIDTH/2, GameConfig::MAP_WIDTH/2);
 		float y = utils::random_float(-GameConfig::MAP_HEIGHT/2, GameConfig::MAP_HEIGHT/2);
 
-		FoodContext food(x, y);
 		int usable_id = pop_usable_id(ctx);
+		FoodContext food(usable_id,x, y);		
+		dbg_tag("FOOD", "usable_id : ", usable_id);
 		new_foods[usable_id] = food;
 		food_contexts[usable_id] = food;
 	}
@@ -47,8 +48,8 @@ void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 				y = dead_body.y;
 			}
 			
-			FoodContext food(x, y);
 			int usable_id = pop_usable_id(ctx);
+			FoodContext food(usable_id, x, y);			
 			new_foods[usable_id] = food;
 			food_contexts[usable_id] = food;
 		}
@@ -70,7 +71,7 @@ int FoodManager::pop_usable_id(ServerContext &ctx){
 	dbg_tag("SEQUENCE", "[FoodManager::pop_usable_id]");
 	if(ctx.food_manager.empty_queue()) return ctx.food_manager.get_contexts_size();
 
-	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
+	std::queue<int>& reusable_ids = ctx.food_manager.get_all_reusable_ids();
 	int food_id = reusable_ids.front();
 	reusable_ids.pop();
 	return food_id;
@@ -78,6 +79,6 @@ int FoodManager::pop_usable_id(ServerContext &ctx){
 
 void FoodManager::push_usable_id(int food_id, ServerContext &ctx){
 	dbg_tag("SEQUENCE", "[FoodManager::push_usable_id]");
-	std::queue<int> reusable_ids = ctx.food_manager.get_all_reusable_ids();
+	std::queue<int>& reusable_ids = ctx.food_manager.get_all_reusable_ids();
 	reusable_ids.push(food_id);
 }

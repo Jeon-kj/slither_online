@@ -222,9 +222,8 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 	if (reported_point.distance_to(food_pos) <= eat_tolerance) {
 		dbg_tag("EAT", "[handler_eat] 충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
 		slither_manager::grow(slither_id, ctx);
-		slither_manager::update_body_len(slither_id, ctx);
+		//slither_manager::update_body_len(slither_id, ctx);
 		ctx.food_manager.del_food(food_id, ctx);
-		message_sender::send_food_remove(food_id, ctx);
 		message_sender::send_slither_length_update(slither_id, +1, ctx);
 		return;
 	}

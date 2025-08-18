@@ -6,7 +6,7 @@
 #include <set>
 
 inline bool debug_enabled = true;
-// LOCK, SLITHER_MOVE, ANGLE, SEQUENCE, HIT, EAT, JOIN, FOOD, FOOD_REMOVE, EAT
+// LOCK, SLITHER_MOVE, ANGLE, SEQUENCE, HIT, EAT, JOIN, FOOD, FOOD_REMOVE, EAT, SEND
 inline const std::set<std::string> excluded_tags = {
     "SLITHER_MOVE",
     "SEQUENCE",

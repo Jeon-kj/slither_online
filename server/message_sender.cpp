@@ -134,7 +134,7 @@ void message_sender::send_food_remove(int food_id, ServerContext& ctx){
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	for(int fd : ctx.client_fds)
 	{		
-		utils::send_queue(fd, MSG_FOOD_SPAWN, send_body, ctx);
+		utils::send_queue(fd, MSG_FOOD_REMOVE, send_body, ctx);
 	}	
 }
 

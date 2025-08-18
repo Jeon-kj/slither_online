@@ -31,7 +31,7 @@ void utils::modify_epoll_events(int epoll_fd, int client_fd, uint32_t events) {
 }
 
 void utils::send_queue(int fd, int32_t type, const std::string& body, ServerContext& ctx){
-	dbg_tag("SEQUENCE", "[utils::send_queue] type : ", type, ", body : ", body);
+	dbg_tag("SEND", "[utils::send_queue] type : ", type, ", body : ", body);
 	std::vector<char> packet;
 
 	int32_t type_net = htonl(type);

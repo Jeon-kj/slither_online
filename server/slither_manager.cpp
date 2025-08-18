@@ -36,6 +36,7 @@ void slither_manager::grow(int id, ServerContext& ctx){
 	ClientContext& client = ctx.client_contexts[id];
 
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	client.body_len++;
 	while(client.body_segments.size() < client.body_len){
 		client.body_segments.emplace_back(client.head.x, client.head.y);
 	}
@@ -44,18 +45,20 @@ void slither_manager::grow(int id, ServerContext& ctx){
 void slither_manager::trim(int id, ServerContext& ctx){
 	dbg("[slither_manager::trim]");
 	ClientContext& client = ctx.client_contexts[id];
+	if(client.body_len <= 0) return;
 
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	client.body_len--;
 	while(client.body_segments.size() > client.body_len){
 		client.body_segments.pop_back();
 	}
 }
 
-void slither_manager::update_body_len(int id, ServerContext &ctx){
+/*void slither_manager::update_body_len(int id, ServerContext &ctx){
 	dbg("[slither_manager::update_body_len]");
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[id].body_len = ctx.client_contexts[id].body_segments.size();
-}
+}*/
 
 void slither_manager::kill_slither(int target_id, ServerContext& ctx){
 	dbg("[slither_manager::kill_slither]");

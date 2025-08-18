@@ -11,7 +11,8 @@ struct FoodContext{
 	float x;
 	float y;
 
-	FoodContext(float x_ = 0, float y_ = 0) : x(x_), y(y_) {}
+	FoodContext() : id(0), x(0), y(0) {}
+	FoodContext(int id_, float x_, float y_) : id(id_), x(x_), y(y_) {}
 };
 
 class FoodManager{
