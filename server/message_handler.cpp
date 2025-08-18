@@ -99,6 +99,9 @@ void message_handler::handle_player_join(
 		client.head.y = rand() % 10 - 5;
 		client.turn_dir = "w";
 		client.angle = M_PI / 2.0f;
+
+		client.body_len = 0;
+		client.path.emplace_back(client.head, 0.0f);
 		
 		j["id"] = client.id;
 		j["x"] = client.head.x;
@@ -202,14 +205,13 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 	float reported_y = j["reportedY"];
 
     Vector2 reported_point(reported_x, reported_y);
-	SlitherSegment head_xy;
+	Vector2 head_xy;
 	{
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		head_xy = ctx.client_contexts[slither_id].head;
 	} 
-    Vector2 actual_head_pos(head_xy.x, head_xy.y);
 
-    if (actual_head_pos.distance_to(reported_point) > 3.0f) {
+    if (head_xy.distance_to(reported_point) > 3.0f) {
         dbg_tag("EAT", "[handler_eat] 충돌 무효: 충돌지점의 좌표와 실제 head의 좌표 사이의 거리가 멉니다.");
         return;
     }

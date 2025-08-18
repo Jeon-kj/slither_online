@@ -2,10 +2,71 @@
 #include "debug.hpp"
 #include "json.hpp"
 #include "message_sender.hpp"
+#include "game_config.hpp"
+#include "vector2.hpp"
 
 #include <cmath>
 
 using json = nlohmann::json;
+
+void slither_manager::add_sample(Vector2 new_pos, int id, ServerContext& ctx){
+	ClientContext& client = ctx.client_contexts[id];
+
+	if(client.path.size() == 0){
+		client.path.emplace_back(new_pos, 0.0f);
+		client.head = new_pos;
+		return;
+	}
+	auto last = client.path.back();
+	float d = new_pos.distance_to(last.pos);
+	if (d <= 0.0) return;
+
+	client.path.emplace_back(new_pos, last.cum_len + d);
+	client.head = new_pos;
+}
+
+void slither_manager::trim_to_physical_len(float physical_len, int id, ServerContext& ctx){
+	ClientContext& client = ctx.client_contexts[id];
+
+	if (client.path.size() < 2) return;
+	float head_cum_len = client.path.back().cum_len;
+	float keep_from = head_cum_len - physical_len;
+
+	auto it = client.path.begin();
+	while (client.path.size() >= 2 && it != client.path.end())
+	{
+		it++;
+
+		if (it == client.path.end() || it->cum_len >= keep_from) break;
+
+		// 커서가 제거될 노드를 가리키면 먼저 다음으로 올려 붙임
+		for (int i = 0; i < client.cursors.size(); i++){
+			if (client.cursors[i] == client.path.begin()) {
+				client.cursors[i] = it;
+			}
+		}
+
+		client.path.pop_front();
+	}
+}
+
+void slither_manager::advance_cursor_to_tarrget(int i, int id, ServerContext& ctx){
+	ClientContext& client = ctx.client_contexts[id];
+	float head_cum_len = client.path.back().cum_len;
+
+	auto last_node = client.path.back();
+
+	float target_cum_len = head_cum_len - (i + 1) * GameConfig::SPACE;
+	if (!client.path.empty())
+		target_cum_len = fmax(target_cum_len, client.path.front().cum_len); // 경계 클램프
+
+	auto it = client.cursors[i];
+	while (!(*it == last_node) && (*it).cum_len < target_cum_len)
+		it++;
+	client.cursors[i] = it;
+
+	client.body_segments[i] = (*it).pos;
+}
 
 void slither_manager::move_client(int id, float delta_time, float speed, ServerContext& ctx){
 	dbg_tag("SLITHER_MOVE", "[slither_manager::move_client]");
@@ -14,21 +75,23 @@ void slither_manager::move_client(int id, float delta_time, float speed, ServerC
 	float dx = std::cos(client.angle) * speed * delta_time;
     float dy = std::sin(client.angle) * speed * delta_time;
 
-	// client.body_len 갱신 로직 추가
-	// client.body_segments, body_len 비교하여 감소 증가 로직 필요
 	size_t len = client.body_segments.size();
 	int blen = std::min((int)len, client.body_len);
 
-	for(int i=blen-1; i>0; i--){
-		client.body_segments[i] = client.body_segments[i-1];
-	}
-	if(!client.body_segments.empty()){
-		client.body_segments[0].x = client.head.x;
-		client.body_segments[0].y = client.head.y;
-	}
+	Vector2 new_pos(client.head.x + dx, client.head.y + dy);
+	
+	slither_manager::add_sample(new_pos, id, ctx);
 
-	client.head.x += dx;
-    client.head.y += dy;
+	float physical_len = GameConfig::SPACE * client.body_len;
+
+	slither_manager::trim_to_physical_len(physical_len, id, ctx);
+
+	int i = 0;
+	while (i < client.cursors.size())
+	{
+		slither_manager::advance_cursor_to_tarrget(i, id, ctx);
+		i++;
+	}
 }
 
 void slither_manager::grow(int id, ServerContext& ctx){
@@ -38,7 +101,13 @@ void slither_manager::grow(int id, ServerContext& ctx){
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	client.body_len++;
 	while(client.body_segments.size() < client.body_len){
-		client.body_segments.emplace_back(client.head.x, client.head.y);
+		int body_segment_size = client.body_segments.size();
+
+		auto node = client.path.begin();
+		client.cursors.push_back(node);
+		Vector2 pos = node->pos;
+
+		client.body_segments.push_back(pos);
 	}
 }
 
@@ -51,6 +120,7 @@ void slither_manager::trim(int id, ServerContext& ctx){
 	client.body_len--;
 	while(client.body_segments.size() > client.body_len){
 		client.body_segments.pop_back();
+		client.cursors.pop_back();
 	}
 }
 

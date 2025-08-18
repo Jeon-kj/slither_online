@@ -1,14 +1,21 @@
 #pragma once
+#include "vector2.hpp"
+
 #include <vector>
 #include <string>
 #include <mutex>
 #include <deque>
+#include <list>
 
-struct SlitherSegment{
-	float x;
-	float y;
+struct SlitherPath{
+	Vector2 pos;
+	float cum_len;
 
-	SlitherSegment(float x_ = 0, float y_ = 0) : x(x_), y(y_) {}
+	SlitherPath(Vector2 pos_, float cum_len_) : pos(pos_), cum_len(cum_len_) {}
+
+	bool operator==(const SlitherPath& other) const {
+        return pos == other.pos && cum_len == other.cum_len;
+    }
 };
 
 struct ClientContext{
@@ -19,10 +26,11 @@ struct ClientContext{
 	float angle;
 	std::string turn_dir;
 
-	// 추후에 충돌 또는 득점으로 인한 길이 증가와 감소 로직 추가 예정
-	// 현재는 body_segments가 서버에서 사용되지 않음
-	SlitherSegment head;
-	std::deque<SlitherSegment> body_segments;
+	// object 관리
+	Vector2 head;
+	std::deque<Vector2> body_segments;
+	std::list<SlitherPath> path;
+	std::vector<std::list<SlitherPath>::iterator> cursors;
 	int body_len;
 
 	std::deque<std::vector<char>> send_queue;

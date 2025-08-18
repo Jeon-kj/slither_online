@@ -42,7 +42,7 @@ void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 				y = dead_client.head.y;
 			}
 			else{
-				SlitherSegment dead_body = dead_client.body_segments.back();
+				Vector2 dead_body = dead_client.body_segments.back();
 				dead_client.body_segments.pop_back();
 				x = dead_body.x;
 				y = dead_body.y;

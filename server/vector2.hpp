@@ -21,4 +21,8 @@ struct Vector2 {
     float distance_to(const Vector2& other) const {
         return (*this - other).magnitude();
     }
+
+    bool operator==(const Vector2& other) const {
+        return x == other.x && y == other.y;
+    }
 };
