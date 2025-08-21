@@ -28,6 +28,12 @@ namespace Slither.Protocol
     }
 
     [Serializable]
+    public struct MovePayloadList
+    {
+        public MovePayload[] posPayloads;
+    }
+
+    [Serializable]
     public struct PlayerIdPayload
     {
         public int id;

@@ -44,12 +44,14 @@ public class MessageHandler : MonoBehaviour
 
     public void HandlePos(string body)
     {
-        var payload = JsonUtility.FromJson<MovePayload>(body);
-        //Debug.Log($"[Type : MSG_POS] id:{payload.id}, x:{payload.x}, y:{payload.y}, length:{payload.length}");
+        var payloads = JsonUtility.FromJson<MovePayloadList>(body);
 
-        MainThreadDispatcher.Enqueue(() => {
-            slitherManager.UpdateSlitherPos(payload);
-        });
+        foreach (var payload in payloads.posPayloads)
+        {
+            MainThreadDispatcher.Enqueue(() => {
+                slitherManager.UpdateSlitherPos(payload);
+            });
+        }        
     }
 
     public void HandleChat(string body)    // [수정 필요] 채팅창 구현
