@@ -226,9 +226,12 @@ void Server::main_loop(){
 					for(auto client_fd: ctx_.client_fds){
 						dbg_tag("SLITHER_MOVE", "[game_loop] client_fd:", client_fd);
 						int client_id = ctx_.fd_to_id[client_fd];
-						slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);
+						slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);						
+					}
+					
+					for(auto client_fd: ctx_.client_fds){
 						message_sender::send_pos(client_fd, ctx_);
-					}				
+					}			
 				}
 				else{
 					dbg_tag("SLITHER_MOVE", "[game_loop] 대기 중 - 클라이언트 없음");

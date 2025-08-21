@@ -73,18 +73,25 @@ void message_sender::send_player_left(int fd, const std::string& body, ServerCon
 void message_sender::send_pos(int fd, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_sender::send_pos]");
 	// 지금 현재의 위치를 전송. (즉, 움직임 처리 함수 호출 이후에 호출해야함.)
-	json j;
+
+	json positions = json::array();
 	{
 		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
-		int client_id = ctx.fd_to_id[fd];
-		ClientContext& client = ctx.client_contexts[client_id];
-	
-		j["id"] = client.id;
-		j["x"] = client.head.x;
-		j["y"] = client.head.y;
+		for(auto client_fd : ctx.client_fds){
+			int client_id = ctx.fd_to_id[client_fd];
+			ClientContext& client = ctx.client_contexts[client_id];
+
+			positions.push_back({
+				{"id", client.id},
+				{"x", client.head.x},
+				{"y", client.head.y}
+			});
+		}		
 	}
 
-	std::string body = j.dump();
+	json wrapper;
+	wrapper["posPayloads"] = positions;
+	std::string body = wrapper.dump();
 	{
 		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		utils::send_queue(fd, MSG_POS, body, ctx);
