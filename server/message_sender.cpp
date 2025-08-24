@@ -56,6 +56,7 @@ void message_sender::send_player_join(
 	{
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		utils::send_queue(fd, MSG_PLAYER_JOIN, send_body, ctx);
+		ctx.client_contexts[fd].activation_flag = true;
 	}
 }
 

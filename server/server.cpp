@@ -224,12 +224,14 @@ void Server::main_loop(){
 				// slither move logic
 				if(!ctx_.client_fds.empty()){
 					for(auto client_fd: ctx_.client_fds){
+						if(!ctx_.client_contexts[client_fd].activation_flag) continue;
 						dbg_tag("SLITHER_MOVE", "[game_loop] client_fd:", client_fd);
 						int client_id = ctx_.fd_to_id[client_fd];
 						slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);						
 					}
 					
 					for(auto client_fd: ctx_.client_fds){
+						if(!ctx_.client_contexts[client_fd].activation_flag) continue;
 						message_sender::send_pos(client_fd, ctx_);
 					}			
 				}

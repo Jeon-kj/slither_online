@@ -22,6 +22,7 @@ struct ClientContext{
 	int fd;
 	int id;
 
+	bool activation_flag = false;
 	std::vector<char> recv_buffer;
 	float angle;
 	std::string turn_dir;
