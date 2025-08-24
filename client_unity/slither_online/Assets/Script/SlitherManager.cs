@@ -10,28 +10,77 @@ public class SlitherManager : MonoBehaviour
     public GameManager gameManager;
     public NetworkManager networkManager;
 
-    Dictionary<int, SlitherContext> players = new Dictionary<int, SlitherContext>();
+    Dictionary<int, SlitherContext> slithers = new Dictionary<int, SlitherContext>();
     public GameObject slitherPrefab; // 유니티에서 프리팹으로 연결
     public GameObject bodyPrefab;
 
     public float space = 0.5f;
 
-    public void AddPlayer(int id, SlitherContext context) { players[id] = context; }
-    public void RemovePlayer(int id) { players.Remove(id); }
-    public SlitherContext GetPlayer(int id) { return players[id]; }
+    public void DisposeSlither()
+    {
+        slithers.Clear();
+    }
 
-    public bool ContainsId(int id) { return players.ContainsKey(id);}
+    public void AddSlither(int id, SlitherContext context) { slithers[id] = context; }
+    public void RemoveSlither(int id) { slithers.Remove(id); }
+    public SlitherContext GetSlither(int id) { return slithers[id]; }
 
-    public bool TryGetPlayer(int id, out SlitherContext context) { return players.TryGetValue(id, out context); }
+    public bool ContainsId(int id) { return slithers.ContainsKey(id);}
+
+    public bool TryGetSlither(int id, out SlitherContext slither) { return slithers.TryGetValue(id, out slither); }
+
+    // BodySegment를 length에 맞게 생성 또는 삭제
+    void BuildBodySegments(SlitherContext slither, int length)
+    {
+        var bodySegments = slither.GetBodySegments();
+        var bodyGroup = slither.GetBodyGroup();
+        var path = slither.GetPath();
+
+        while (bodySegments.Count < length)
+        {
+            var tail = path.First;
+            Vector2 startPos = tail != null ? tail.Value.pos : slither.GetHeadObject().transform.position;
+
+            var segment = Instantiate(bodyPrefab, startPos, Quaternion.identity);
+            segment.transform.SetParent(bodyGroup, true);
+            bodySegments.Add(segment);
+        }
+
+        while (bodySegments.Count > length)
+        {
+            var last = bodySegments[^1];    // ^1 : 뒤에서 첫번째 원소!
+            Destroy(last);
+            bodySegments.RemoveAt(bodySegments.Count - 1);
+        }
+    }
+
+    // 커서 수 == 세그먼트 수 유지
+    void SyncCursorsWithBodySegments(SlitherContext slither)
+    {
+        var cursors = slither.GetCursors();
+        var bodySegments = slither.GetBodySegments();
+        var tail = slither.GetPath().First;  // SlitherContext의 Init에서 최초 Add, 즉 존재를 전제로 함
+
+        int need = bodySegments.Count;
+        int have = cursors.Count;
+        if (have < need)
+        {
+            for (int i = have; i < need; i++) cursors.Add(tail);
+        }
+        else if (have > need)
+        {
+            cursors.RemoveRange(need, have - need);
+        }
+    }
 
     public void InitSlither(bool isLocalPlayer, PlayerJoinPayload payload)
     {
         DebugUtil.DbgTag("SEQUENCE", "[InitSlither] isLocalPlayer : ", isLocalPlayer);
         Vector2 spawnPos = new Vector2(payload.x, payload.y);
-        GameObject slither = Instantiate(slitherPrefab, spawnPos, Quaternion.identity);
+        GameObject slitherObj = Instantiate(slitherPrefab, spawnPos, Quaternion.identity);
 
-        Transform head = slither.transform.Find("Head");
-        Transform bodyGroup = slither.transform.Find("BodyGroup");
+        Transform head = slitherObj.transform.Find("Head");
+        Transform bodyGroup = slitherObj.transform.Find("BodyGroup");
 
         if (head == null || bodyGroup == null)
         {
@@ -40,18 +89,21 @@ public class SlitherManager : MonoBehaviour
         }
 
         SlitherContext context = new SlitherContext();
-        context.Init(slither, head.gameObject, bodyGroup, payload.length, spawnPos);
+        
+        context.Init(slitherObj, head.gameObject, bodyGroup, payload.length, spawnPos);
+        BuildBodySegments(context, payload.length);
+        SyncCursorsWithBodySegments(context);
 
         if (isLocalPlayer)
         {
-            gameManager.InitPlayer(slither);
+            gameManager.InitPlayer(slitherObj);
             var reporter = context.GetHeadObject().AddComponent<CollisionReporter>();
             reporter.slitherManager = this;
         }
-        slither.name = $"Player_{payload.id}";
-        slither.GetComponent<IdHolder>().SetId(payload.id);
+        slitherObj.name = $"Player_{payload.id}";
+        slitherObj.GetComponent<IdHolder>().SetId(payload.id);
 
-        players[payload.id] = context;
+        AddSlither(payload.id, context);
     }
 
     void AppendSample(SlitherContext slither, Vector2 newPos)
@@ -121,13 +173,10 @@ public class SlitherManager : MonoBehaviour
 
     public void UpdateSlitherPos(MovePayload payload)
     {
-        if (!ContainsId(payload.id))
-        {
-            return;
-        }
-        Vector2 newPos = new Vector2(payload.x, payload.y);
+        if (!ContainsId(payload.id)) return;
 
-        SlitherContext slither = players[payload.id];
+        Vector2 newPos = new Vector2(payload.x, payload.y);
+        SlitherContext slither = GetSlither(payload.id);
 
         List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors = slither.GetCursors();
 
@@ -150,11 +199,11 @@ public class SlitherManager : MonoBehaviour
         }
     }
 
-    public void DelSCtx(int id, SlitherContext sCtx)
+    public void DelSCtx(int id, SlitherContext slither)
     {
-        GameObject rootObject = sCtx.GetRootObject();
-        GameObject headObject = sCtx.GetHeadObject();
-        List<GameObject> bodySegments = sCtx.GetBodySegments();
+        GameObject rootObject = slither.GetRootObject();
+        GameObject headObject = slither.GetHeadObject();
+        List<GameObject> bodySegments = slither.GetBodySegments();
 
         Destroy(headObject);
         foreach (var segment in bodySegments)
@@ -162,50 +211,17 @@ public class SlitherManager : MonoBehaviour
             Destroy(segment);
         }
         Destroy(rootObject);
-        players.Remove(id);
+        RemoveSlither(id);
     }
 
     public void UpdateSlitherLength(int id, int length)
     {
         DebugUtil.DbgTag("SEQUENCE", "[UpdateSlitherLength]");
-        if (!ContainsId(id))
-        {
-            return; 
-        }
-
-        SlitherContext slither = players[id];
+        if (!TryGetSlither(id, out var slither)) return;
 
         slither.SetBodyLen(length);
-        
-        List<GameObject> bodySegments = slither.GetBodySegments();
-        LinkedList<(Vector2 pos, float cumLen)> path = slither.GetPath();
-        List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors = slither.GetCursors();
-        Transform bodyGroup = slither.GetBodyGroup();
-
-        // 길이가 늘었을 경우
-        while (bodySegments.Count < length)
-        {
-            var segment = Instantiate(bodyPrefab);
-
-            var node = path.First;
-
-            cursors.Add(node);
-            Vector2 pos = node.Value.pos;
-
-            segment.transform.position = pos;
-            segment.transform.SetParent(bodyGroup);
-            bodySegments.Add(segment);
-        }
-
-        // 길이가 줄었을 경우
-        while (bodySegments.Count > length)
-        {
-            var lastSegment = bodySegments[bodySegments.Count - 1];
-            GameObject.Destroy(lastSegment);
-            bodySegments.RemoveAt(bodySegments.Count - 1);
-
-            cursors.RemoveAt(cursors.Count-1);
-        }
+        BuildBodySegments(slither, length);
+        SyncCursorsWithBodySegments(slither);
     }
 
     public void OnHeadTriggerEnter(Collider2D other)

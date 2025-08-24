@@ -16,19 +16,30 @@ using Unity.VisualScripting;
 
 public class NetworkManager : MonoBehaviour
 {
+    enum ReadResult
+    {
+        NeedMore,
+        GotMessage,
+        Closed,          // 정상 종료 (FIN)
+        Error            // 예외 종료 (IOException, RST 등)
+    }
+
+
     public GameManager gameManager;
     public SlitherMove slitherMove;
     public MessageHandler messageHandler;
+    public SlitherManager slitherManager;
 
     TcpClient client;
     NetworkStream stream;
 
+    Thread thread;
     //public InputField inputField;
     //public Button sendButton;
 
     volatile bool connected = false;
     volatile bool isRunning = false;
-    const int MaxBodyLength = 10000;
+    const int MaxBodyLength = 100000;
 
     ConcurrentQueue<(int type, string body)> recvQueue = new();
     
@@ -41,7 +52,7 @@ public class NetworkManager : MonoBehaviour
         {
             DebugUtil.DbgTag("SEQUENCE", "[Start] tryConnect()");
 
-            Thread thread = new Thread(RunReceiver);
+            thread = new Thread(RunReceiver);
             thread.IsBackground = true;
             thread.Start();
 
@@ -60,12 +71,17 @@ public class NetworkManager : MonoBehaviour
 
     void OnApplicationQuit()
     {
-        DisposeClient();
+        gameManager.DisposeGame();
     }
 
     void OnDestroy()
     {
-        DisposeClient();
+        gameManager.DisposeGame();
+    }
+
+    private void OnDisable()
+    {
+        gameManager.DisposeGame();
     }
     #endregion
 
@@ -84,7 +100,7 @@ public class NetworkManager : MonoBehaviour
     #endregion
 
     #region External Interface
-    
+
     public void SendPlayerJoin()
     {
         DebugUtil.DbgTag("SEQUENCE", "[SendPlayerJoin()]");
@@ -194,10 +210,20 @@ public class NetworkManager : MonoBehaviour
         {
             while (isRunning)
             {
-                if (ReadMessage(out var type, out var body))
+                ReadResult result = ReadMessage(out var type, out var body);
+                switch (result)
                 {
-                    recvQueue.Enqueue((type, body));
+                    case ReadResult.GotMessage:
+                        recvQueue.Enqueue((type, body));
+                        break;
+                    case ReadResult.Closed:
+                        Debug.Log("연결 정상 종료");
+                        return;
+                    case ReadResult.Error:
+                        Debug.LogWarning("네트워크 오류로 연결 끊김");
+                        return;
                 }
+
             }
         }
         catch (Exception ex)
@@ -206,11 +232,11 @@ public class NetworkManager : MonoBehaviour
         }
         finally
         {
-            DisposeClient();
+            MainThreadDispatcher.Enqueue(() => gameManager.DisposeGame());
         }
     }
 
-    bool ReadMessage(out int type, out string body)
+    ReadResult ReadMessage(out int type, out string body)
     {
         type = -1;
         body = null;
@@ -223,11 +249,8 @@ public class NetworkManager : MonoBehaviour
                 while (readContext.HeaderBytesRead < 8)
                 {
                     read = stream.Read(readContext.HeaderBuffer, readContext.HeaderBytesRead, 8 - readContext.HeaderBytesRead);
-                    if (read <= 0)
-                    {
-                        Debug.LogWarning($"[ReadMessage] Header read failed. Total read: {readContext.HeaderBytesRead}");
-                        return false;
-                    }
+                    if (read < 0)  return ReadResult.Error;
+                    if (read == 0) return ReadResult.Closed;
                     readContext.HeaderBytesRead += read;
                 }
 
@@ -236,14 +259,15 @@ public class NetworkManager : MonoBehaviour
                 if (length < 0 || length > MaxBodyLength) // 너무 큰 값 방지
                 {
                     Debug.LogError($"[ReadMessage] Invalid body length: {length}");
-                    return false;
+                    return ReadResult.Error;
                 }
 
                 if (length == 0)
                 {
                     body = "";
+                    type = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(readContext.HeaderBuffer, 0));
                     readContext.InitReadContext();
-                    return true;
+                    return ReadResult.GotMessage;
                 }
 
                 // BodyBuffer는 이 타이밍에 단 한 번 할당
@@ -252,32 +276,27 @@ public class NetworkManager : MonoBehaviour
 
                 // 상태를 Body 읽기로 전환
                 readContext.State = ReadContext.ReadState.ReadingBody;
-                return false;
+                return ReadResult.NeedMore;
             }            
             else
             {            
                 while (readContext.BodyBytesRead < readContext.BodyExpectedLength)
                 {
                     read = stream.Read(readContext.BodyBuffer, readContext.BodyBytesRead, readContext.BodyExpectedLength - readContext.BodyBytesRead);
-                    if (read <= 0)
-                    {
-                        Debug.LogError("body read error or closed");
-                        return false;
-                    }
+                    if (read < 0) return ReadResult.Error;
+                    if (read == 0) return ReadResult.Closed;
                     readContext.BodyBytesRead += read;
                 }
 
                 type = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(readContext.HeaderBuffer, 0));
                 body = Encoding.UTF8.GetString(readContext.BodyBuffer);
                 readContext.InitReadContext();
-                return true;
+                return ReadResult.GotMessage;
             }
         }
-        catch (Exception ex)
-        {
-            Debug.LogError($"[ReadMessage Exception] {ex}");
-            return false;
-        }
+        catch (IOException) { return ReadResult.Closed; }
+        catch (SocketException) { return ReadResult.Closed; }
+        catch (Exception ex) { Debug.LogError($"[ReadMessage Exception] {ex}"); return ReadResult.Closed; }
     }
     #endregion
 
@@ -299,11 +318,12 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
-    void DisposeClient()
+    public void DisposeClient()
     {
-        isRunning = false; // 루프 종료
+        isRunning = false; // 루프 종료        
         stream?.Close();
         client?.Close();
+        thread?.Join();
     }
     #endregion
 }

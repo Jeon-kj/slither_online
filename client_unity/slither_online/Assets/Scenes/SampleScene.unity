@@ -150,6 +150,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   slitherMove: {fileID: 1368696592}
   cameraFollow: {fileID: 519420033}
+  slitherManager: {fileID: 1180243425}
+  networkManager: {fileID: 809983123}
 --- !u!4 &519368047
 Transform:
   m_ObjectHideFlags: 0
@@ -432,6 +434,7 @@ MonoBehaviour:
   gameManager: {fileID: 519368046}
   slitherMove: {fileID: 1368696592}
   messageHandler: {fileID: 1963038918}
+  slitherManager: {fileID: 1180243425}
 --- !u!4 &809983124
 Transform:
   m_ObjectHideFlags: 0
@@ -680,6 +683,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   networkManager: {fileID: 809983123}
   sendInterval: 0.05
+  botMode: 0
+  botTurnDegPerSec: 90
+  botDecisionInterval: 1.2
 --- !u!4 &1368696593
 Transform:
   m_ObjectHideFlags: 0

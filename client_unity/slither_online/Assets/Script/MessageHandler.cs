@@ -44,6 +44,7 @@ public class MessageHandler : MonoBehaviour
 
     public void HandlePos(string body)
     {
+        if (!gameManager.GetJoinStatus()) return;
         var payloads = JsonUtility.FromJson<MovePayloadList>(body);
 
         foreach (var payload in payloads.posPayloads)
@@ -75,6 +76,7 @@ public class MessageHandler : MonoBehaviour
         if (body.Contains("slitherPayloads"))
         {
             var payloadList = JsonUtility.FromJson<PlayerJoinPayloadList>(body);
+            DebugUtil.DbgTag("ERRORCHECK", "payloadList.id: ", payloadList.id);
             gameManager.SetLocalPlayerId(payloadList.id);
 
             foreach (var payload in payloadList.slitherPayloads)
@@ -82,6 +84,10 @@ public class MessageHandler : MonoBehaviour
                 DebugUtil.DbgTag("JOIN", "[HandlePlayerJoin] payload : ", payload);
                 MainThreadDispatcher.Enqueue(() => {
                     bool flag = payload.id == gameManager.GetLocalPlayerId();
+                    DebugUtil.DbgTag("ERRORCHECK", "payloadList.id: ", payloadList.id);
+                    DebugUtil.DbgTag("ERRORCHECK", "gameManager.GetLocalPlayerId(): ", gameManager.GetLocalPlayerId());
+                    DebugUtil.DbgTag("ERRORCHECK", "payload.id: ", payload.id);
+                    DebugUtil.DbgTag("ERRORCHECK", "payload.length: ", payload.length);
                     slitherManager.InitSlither(flag, payload);
                 });
             }
@@ -108,7 +114,7 @@ public class MessageHandler : MonoBehaviour
     public void HandlePlayerLeft(string body)
     {
         var payload = JsonUtility.FromJson<PlayerLeftPayload>(body);
-        if (slitherManager.TryGetPlayer(payload.id, out SlitherContext sCtx))
+        if (slitherManager.TryGetSlither(payload.id, out SlitherContext sCtx))
         {
             MainThreadDispatcher.Enqueue(() => {
                 slitherManager.DelSCtx(payload.id, sCtx);

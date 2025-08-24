@@ -8,7 +8,7 @@ public static class DebugUtil
     // MESSAGE, JOIN, NEW_JOIN, SEQUENCE, FOOD, HIT, POSITION, SLITHER
     private static readonly HashSet<string> excludedTags = new HashSet<string>
     {
-        "MESSAGE"
+        "MESSAGE", "JOIN", "SEQUENCE"
     };
 
     // 일반 디버그 (태그 없이)

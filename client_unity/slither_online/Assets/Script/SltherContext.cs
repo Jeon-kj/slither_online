@@ -12,9 +12,11 @@ public class SlitherContext
 
     // pos : 수신받은 head의 좌표를 저장(head의 이동경로)
     // cumLen(cumulativeSum) : cumPath[i] = headPath[0]->headPath[i]까지의 누적길이
+    // 꼬리->머리
     private LinkedList<(Vector2 pos, float cumLen)> path;
     // i번째 Segment가 가리키는 headPath의 index를 저장(머리 미포함)
-    List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors;  
+    // 머리->꼬리
+    List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors;
 
     // 생성자
     public SlitherContext()
@@ -40,7 +42,7 @@ public class SlitherContext
 
         for (int i = 0; i < bodyLen; i++)
         {
-            cursors.Add(node);            
+            cursors.Add(node);
         }
     }
 

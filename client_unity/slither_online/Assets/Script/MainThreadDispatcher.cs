@@ -40,4 +40,9 @@ public class MainThreadDispatcher : MonoBehaviour
             }
         }
     }
+
+    private void OnEnable()
+    {
+        executionQueue.Clear();
+    }
 }
