@@ -337,6 +337,7 @@ public class NetworkManager : MonoBehaviour
 
     public void DisposeClient()
     {
+        SendPlayerLeft();
         isRunning = false; // 루프 종료        
         stream?.Close();
         client?.Close();
