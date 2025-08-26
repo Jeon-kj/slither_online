@@ -75,13 +75,13 @@ namespace Slither.Protocol
     [Serializable]
     public struct HitPayload
     {
-        public int bodySlitherId;
+        public int winnerSlitherId;
         public float reportedX;
         public float reportedY;
 
         public HitPayload(int id, float x, float y)
         {
-            this.bodySlitherId = id;
+            this.winnerSlitherId = id;
             this.reportedX = x;
             this.reportedY = y;
         }

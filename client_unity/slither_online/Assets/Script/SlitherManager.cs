@@ -234,13 +234,19 @@ public class SlitherManager : MonoBehaviour
 
             networkManager.SendEat(foodId, hitPos);
         }
-        else if (other.CompareTag("SlitherBody"))
+        else if (other.CompareTag("SlitherBody") || other.CompareTag("SlitherHead"))
         {
             int myId = gameManager.GetLocalPlayerId();
-            int targetId = other.transform.parent.parent.GetComponent<IdHolder>().GetId();
+            int targetId = -1;
+            if (other.CompareTag("SlitherBody"))
+                targetId = other.transform.parent.parent.GetComponent<IdHolder>().GetId();
+            else if(other.CompareTag("SlitherHead"))
+                targetId = other.transform.parent.GetComponent<IdHolder>().GetId();
+
             Vector2 hitPos = other.ClosestPoint(transform.position);
 
-            if (myId == targetId)
+            DebugUtil.DbgTag("ERRORCHECK", $"targetId : {targetId}");
+            if (myId == targetId || targetId == -1)
                 return; // 내 body와 충돌 → 무시
 
             networkManager.SendHit(targetId, hitPos);
