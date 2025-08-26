@@ -156,8 +156,8 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 		float reportedY;
 	}*/
 	json j = json::parse(body);
-	int head_slither_id = id;
-	int body_slither_id = j["bodySlitherId"];
+	int loser_slither_id = id;
+	int winner_slither_id = j["winnerSlitherId"];
 	float reported_x = j["reportedX"];
 	float reported_y = j["reportedY"];
 
@@ -166,7 +166,7 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 
 		Vector2 reported_point(reported_x, reported_y);
-		const auto& head_xy = ctx.client_contexts[head_slither_id].head;
+		const auto& head_xy = ctx.client_contexts[loser_slither_id].head;
 		Vector2 actual_head_pos(head_xy.x, head_xy.y);
 
 		if (actual_head_pos.distance_to(reported_point) > 3.0f) {
@@ -175,17 +175,25 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 		}
 
 		constexpr float hit_tolerance = 1.5f;
-		for (const auto& segment : ctx.client_contexts[body_slither_id].body_segments) {
-			Vector2 segmentPos(segment.x, segment.y);
-			if (reported_point.distance_to(segmentPos) <= hit_tolerance) {
-				dbg_tag("HIT", "[handler_hit] 충돌 유효: (slither_id)", head_slither_id, "가 죽었습니다. (slither_id)", body_slither_id, "에 의해서.");
-				should_kill = true;			
-				break;
-			}
+		ClientContext winner_slither_ctx = ctx.client_contexts[winner_slither_id];
+		Vector2 headPos(winner_slither_ctx.head.x, winner_slither_ctx.head.y);
+		if (reported_point.distance_to(headPos) <= hit_tolerance) {
+			dbg_tag("HIT", "[handler_hit] 충돌 유효: (slither_id)", loser_slither_id, "가 죽었습니다. (slither_id)", winner_slither_id, "에 의해서.");
+			should_kill = true;
 		}
+		else {
+			for (const auto& segment : winner_slither_ctx.body_segments) {
+				Vector2 segmentPos(segment.x, segment.y);
+				if (reported_point.distance_to(segmentPos) <= hit_tolerance) {
+					dbg_tag("HIT", "[handler_hit] 충돌 유효: (slither_id)", loser_slither_id, "가 죽었습니다. (slither_id)", winner_slither_id, "에 의해서.");
+					should_kill = true;			
+					break;
+				}
+			}
+		}		
 	}
 	
-	if(should_kill) slither_manager::kill_slither(head_slither_id, ctx);
+	if(should_kill) slither_manager::kill_slither(loser_slither_id, ctx);
     dbg_tag("HIT", "[handler_hit] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");
 }
 
