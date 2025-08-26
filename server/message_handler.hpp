@@ -33,4 +33,6 @@ namespace message_handler {
 	void handle_hit(int id, const std::string& body, ServerContext& ctx);
 	
 	void handle_eat(int id, const std::string& body, ServerContext& ctx);
+
+	void handle_boost_status(int id, const std::string& body, ServerContext& ctx);
 }

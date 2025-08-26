@@ -22,10 +22,12 @@ struct ClientContext{
 	int fd;
 	int id;
 
+	// 변수 초기화 완료 여부
 	bool activation_flag = false;
+
+	// 송수신
 	std::vector<char> recv_buffer;
-	float angle;
-	std::string turn_dir;
+	std::deque<std::vector<char>> send_queue;
 
 	// object 관리
 	Vector2 head;
@@ -34,7 +36,11 @@ struct ClientContext{
 	std::vector<std::list<SlitherPath>::iterator> cursors;
 	int body_len;
 
-	std::deque<std::vector<char>> send_queue;
+	// 이동
+	bool boost_status = false;
+	float boost_timer = 0.0f;
+	float angle;
+	std::string turn_dir;	
 
 	ClientContext() = default;
 	ClientContext(int fd_, int id_) : fd(fd_), id(id_) {}

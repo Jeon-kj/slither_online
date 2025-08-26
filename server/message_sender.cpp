@@ -149,15 +149,14 @@ void message_sender::send_food_remove(int food_id, ServerContext& ctx){
 void message_sender::send_slither_length_update(int slither_id, int delta, ServerContext& ctx){
 	// delta = -1/+1
 	dbg_tag("SEQUENCE", "[message_sender::send_slither_length_update] slither_id : ", slither_id, ", delta : ", delta);
+	// std::lock_guard<std::mutex> lock(ctx.server_mutex);
 
 	json j;
 	j["id"] = slither_id;
 	j["length"] = ctx.client_contexts[slither_id].body_len;
 	j["delta"] = delta;
-	
 	std::string send_body = j.dump();
 	
-	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	for(int fd : ctx.client_fds)
 	{		
 		utils::send_queue(fd, MSG_SLITHER_LENGTH_UPDATE, send_body, ctx);

@@ -76,6 +76,10 @@ void message_handler::handle_message(
 		case MSG_EAT:
 			message_handler::handle_eat(id, body, ctx);
 			break;
+
+		case MSG_BOOST_STATUS:
+			message_handler::handle_boost_status(id, body, ctx);
+			break;
 	}
 }
 
@@ -151,7 +155,7 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 	dbg_tag("SEQUENCE", "[message_handler::handle_hit]");
 	/*
 	struct MsgHitPayload {
-		int bodySlitherId;   // 충돌 대상의 고유 ID
+		int winnerSlitherId;   // 충돌 대상의 고유 ID
 		float reportedX;       // 충돌 지점
 		float reportedY;
 	}*/
@@ -175,7 +179,7 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 		}
 
 		constexpr float hit_tolerance = 1.5f;
-		ClientContext winner_slither_ctx = ctx.client_contexts[winner_slither_id];
+		ClientContext& winner_slither_ctx = ctx.client_contexts[winner_slither_id];
 		Vector2 headPos(winner_slither_ctx.head.x, winner_slither_ctx.head.y);
 		if (reported_point.distance_to(headPos) <= hit_tolerance) {
 			dbg_tag("HIT", "[handler_hit] 충돌 유효: (slither_id)", loser_slither_id, "가 죽었습니다. (slither_id)", winner_slither_id, "에 의해서.");
@@ -234,9 +238,24 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 		slither_manager::grow(slither_id, ctx);
 		//slither_manager::update_body_len(slither_id, ctx);
 		ctx.food_manager.del_food(food_id, ctx);
+		
+		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		message_sender::send_slither_length_update(slither_id, +1, ctx);
 		return;
 	}
 
 	dbg_tag("EAT", "[handler_eat] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");	
+}
+
+void message_handler::handle_boost_status(int id, const std::string& body, ServerContext& ctx){
+	/*
+	struct MsgBoostStatusPayload {
+		bool boostStatus;
+	}*/
+
+	json j = json::parse(body);
+	int slither_id = id;
+	bool boost_status = j["boostStatus"];
+
+	ctx.client_contexts[slither_id].boost_status = boost_status;
 }

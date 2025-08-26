@@ -4,6 +4,7 @@
 #include "message_sender.hpp"
 #include "slither_manager.hpp"
 #include "debug.hpp"
+#include "game_config.hpp"
 
 #include <iostream>
 #include <unistd.h>
@@ -188,12 +189,10 @@ void Server::handle_write(int fd){
 
 void Server::main_loop(){
 	dbg_tag("SEQUENCE", "[Server::main_loop]");
-	constexpr int MAX_EVENTS = 10;
-
-	epoll_event events[MAX_EVENTS];
+	epoll_event events[GameConfig::MAX_EVENTS];
 	auto network_loop = [&]() {
 		while(running_) {
-			int nfds = epoll_wait(epoll_fd_, events, MAX_EVENTS, -1);
+			int nfds = epoll_wait(epoll_fd_, events, GameConfig::MAX_EVENTS, -1);
 			for(int i=0; i<nfds; ++i){
 				int fd = events[i].data.fd;
 				if(fd == server_fd_){
@@ -224,10 +223,24 @@ void Server::main_loop(){
 				// slither move logic
 				if(!ctx_.client_fds.empty()){
 					for(auto client_fd: ctx_.client_fds){
-						if(!ctx_.client_contexts[client_fd].activation_flag) continue;
+						ClientContext& client = ctx_.client_contexts[client_fd];
+
+						if(!client.activation_flag) continue;
 						dbg_tag("SLITHER_MOVE", "[game_loop] client_fd:", client_fd);
 						int client_id = ctx_.fd_to_id[client_fd];
-						slither_manager::move_client(client_id, 0.02f, 1.0f, ctx_);						
+						
+						if(client.boost_status && client.body_len > 0){
+							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BOOST_SPEED, ctx_);
+							client.boost_timer += 0.02f;
+							if(client.boost_timer >= GameConfig::BOOST_TICK){
+								client.boost_timer = 0;
+								// body len 줄이는 로직
+								slither_manager::trim(client_id, ctx_);
+								message_sender::send_slither_length_update(client_id, -1, ctx_);
+							}
+						}							
+						else
+							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BASIC_SPEED, ctx_);						
 					}
 					
 					for(auto client_fd: ctx_.client_fds){

@@ -113,10 +113,10 @@ void slither_manager::grow(int id, ServerContext& ctx){
 
 void slither_manager::trim(int id, ServerContext& ctx){
 	dbg("[slither_manager::trim]");
-	ClientContext& client = ctx.client_contexts[id];
+	//std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	ClientContext& client = ctx.client_contexts[id];	
 	if(client.body_len <= 0) return;
-
-	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	
 	client.body_len--;
 	while(client.body_segments.size() > client.body_len){
 		client.body_segments.pop_back();
