@@ -9,6 +9,7 @@ public class SlitherMove : MonoBehaviour
     [Header("공통")]
     public float sendInterval = 0.05f; // 50ms(20fps)
     float timer;
+    bool mousePressed;  // 부스터 여부
 
     [Header("봇 모드")]
     public bool botMode = false;
@@ -28,6 +29,17 @@ public class SlitherMove : MonoBehaviour
     void Update()
     {
         if (slither == null) return;
+
+        if (!botMode)
+        {
+            bool pressedNow = Input.GetMouseButton(0); // 좌클릭 유지 여부
+            if (pressedNow != mousePressed)
+            {
+                mousePressed = pressedNow;
+                networkManager.SendBoostStatus(mousePressed); // true=클릭 시작, false=해제
+            }
+            DebugUtil.Dbg("pressedNow: ", pressedNow);
+        }
 
         timer += Time.deltaTime;
         if (timer < sendInterval) return;

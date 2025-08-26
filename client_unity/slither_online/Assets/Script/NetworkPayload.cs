@@ -129,4 +129,14 @@ namespace Slither.Protocol
         public int length;
         public int delta;
     }
+
+    [Serializable]
+    public struct BoostStatusPayload
+    {
+        public bool boostStatus;
+        public BoostStatusPayload(bool boostStatus)
+        {
+            this.boostStatus = boostStatus;
+        }
+    }
 }

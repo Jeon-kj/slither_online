@@ -201,6 +201,22 @@ public class NetworkManager : MonoBehaviour
         stream.Write(headerLen, 0, headerLen.Length);
         stream.Write(body, 0, body.Length);
     }
+
+    public void SendBoostStatus(bool mousePressed)
+    {
+        BoostStatusPayload payload = new BoostStatusPayload(mousePressed);
+        string json = JsonUtility.ToJson(payload);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+
+        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_BOOST_STATUS));
+        byte[] headerType = BitConverter.GetBytes(type);
+        int len = IPAddress.HostToNetworkOrder(body.Length);
+        byte[] headerLen = BitConverter.GetBytes(len);
+
+        stream.Write(headerType, 0, headerType.Length);
+        stream.Write(headerLen, 0, headerLen.Length);
+        stream.Write(body, 0, body.Length);
+    }
     #endregion
 
     #region RecvThread And Logic
