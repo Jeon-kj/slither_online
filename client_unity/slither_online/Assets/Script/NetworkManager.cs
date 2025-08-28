@@ -25,26 +25,28 @@ public class NetworkManager : MonoBehaviour
         Error            // 예외 종료 (IOException, RST 등)
     }
 
-
     public GameManager gameManager;
     public SlitherMove slitherMove;
     public MessageHandler messageHandler;
     public SlitherManager slitherManager;
 
+    // 네트워크와 게임 실행 상태
     TcpClient client;
     NetworkStream stream;
+    volatile bool connected = false;    // 보내도 되는가?
+    volatile bool isRunning = false;    // 수신해도 되는가?
 
+    // 수신 thread
     Thread thread;
-    //public InputField inputField;
-    //public Button sendButton;
+    ConcurrentQueue<(int type, string body)> recvQueue = new();
+    private int _closeRequested; // 0/1
+    private ReadContext readContext = new ReadContext();
 
-    volatile bool connected = false;
-    volatile bool isRunning = false;
     const int MaxBodyLength = 100000;
 
-    ConcurrentQueue<(int type, string body)> recvQueue = new();
-    
-    private ReadContext readContext = new ReadContext();
+    // public Properties
+    public bool CanSend => connected && stream != null;
+    public bool IsConnected => connected;
 
     #region Unity Lifecycle
     void Start()
@@ -102,19 +104,13 @@ public class NetworkManager : MonoBehaviour
 
     #region External Interface
 
-    public void SendPlayerJoin()
+    public bool SendPlayerJoin()
     {
         DebugUtil.DbgTag("SEQUENCE", "[SendPlayerJoin()]");
-        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_PLAYER_JOIN));
-        byte[] headerType = BitConverter.GetBytes(type);
-        int len = IPAddress.HostToNetworkOrder(0);
-        byte[] headerLen = BitConverter.GetBytes(len);
-
-        stream.Write(headerType, 0, headerType.Length);
-        stream.Write(headerLen, 0, headerLen.Length);
+        return TrySend(MessageType.MSG_PLAYER_JOIN, null);
     }
 
-    public void SendPlayerLeft()
+    public bool SendPlayerLeft()
     {
         // 서버에게 자신의 id를 전송
         var id = gameManager.GetLocalPlayerId();
@@ -123,36 +119,19 @@ public class NetworkManager : MonoBehaviour
         string json = JsonUtility.ToJson(payload);
         byte[] body = Encoding.UTF8.GetBytes(json);
 
-        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_PLAYER_LEFT));
-        byte[] headerType = BitConverter.GetBytes(type);
-        int len = IPAddress.HostToNetworkOrder(body.Length);
-        byte[] headerLen = BitConverter.GetBytes(len);
+        return TrySend(MessageType.MSG_PLAYER_LEFT, body);
+    }
 
-        stream.Write(headerType, 0, headerType.Length);
-        stream.Write(headerLen, 0, headerLen.Length);
-        stream.Write(body, 0, body.Length);
-    }   // [수정 필요] 연결할 곳을 찾아야 함
-
-    public void SendAngle(float angle)
+    public bool SendAngle(float angle)
     {
-        if (!connected || stream == null || !stream.CanWrite)
-            return;
-
         AnglePayload payload = new AnglePayload(angle);
         string json = JsonUtility.ToJson(payload);
         byte[] body = Encoding.UTF8.GetBytes(json);
 
-        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_ANGLE));
-        byte[] headerType = BitConverter.GetBytes(type);
-        int len = IPAddress.HostToNetworkOrder(body.Length);
-        byte[] headerLen = BitConverter.GetBytes(len);
+        return TrySend(MessageType.MSG_ANGLE, body);
+    }
 
-        stream.Write(headerType, 0, headerType.Length);
-        stream.Write(headerLen, 0, headerLen.Length);
-        stream.Write(body, 0, body.Length);
-    } 
-
-    void SendChat(string msg)   
+    bool SendChat(string msg)   
     {
         int id = gameManager.GetLocalPlayerId();
 
@@ -160,62 +139,34 @@ public class NetworkManager : MonoBehaviour
         string json = JsonUtility.ToJson(payload);
         byte[] body = Encoding.UTF8.GetBytes(json);
 
-        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_CHAT));
-        byte[] headerType = BitConverter.GetBytes(type);
-        int len = IPAddress.HostToNetworkOrder(body.Length);
-        byte[] headerLen = BitConverter.GetBytes(len);
-
-        stream.Write(headerType, 0, headerType.Length);
-        stream.Write(headerLen, 0, headerLen.Length);
-        stream.Write(body, 0, body.Length);
+        return TrySend(MessageType.MSG_CHAT, body);
     }
 
-    public void SendHit(int slitherId, Vector2 hitPos)
+    public bool SendHit(int slitherId, Vector2 hitPos)
     {
         HitPayload payload = new HitPayload(slitherId, hitPos.x, hitPos.y);
         string json = JsonUtility.ToJson(payload);
         byte[] body = Encoding.UTF8.GetBytes(json);
 
-        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_HIT));
-        byte[] headerType = BitConverter.GetBytes(type);
-        int len = IPAddress.HostToNetworkOrder(body.Length);
-        byte[] headerLen = BitConverter.GetBytes(len);
-
-        stream.Write(headerType, 0, headerType.Length);
-        stream.Write(headerLen, 0, headerLen.Length);
-        stream.Write(body, 0, body.Length);
+        return TrySend(MessageType.MSG_HIT, body);
     }
 
-    public void SendEat(int foodId, Vector2 hitPos)
+    public bool SendEat(int foodId, Vector2 hitPos)
     {
         EatPayload payload = new EatPayload(foodId, hitPos.x, hitPos.y);
         string json = JsonUtility.ToJson(payload);
         byte[] body = Encoding.UTF8.GetBytes(json);
 
-        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_EAT));
-        byte[] headerType = BitConverter.GetBytes(type);
-        int len = IPAddress.HostToNetworkOrder(body.Length);
-        byte[] headerLen = BitConverter.GetBytes(len);
-
-        stream.Write(headerType, 0, headerType.Length);
-        stream.Write(headerLen, 0, headerLen.Length);
-        stream.Write(body, 0, body.Length);
+        return TrySend(MessageType.MSG_EAT, body);
     }
 
-    public void SendBoostStatus(bool mousePressed)
+    public bool SendBoostStatus(bool mousePressed)
     {
         BoostStatusPayload payload = new BoostStatusPayload(mousePressed);
         string json = JsonUtility.ToJson(payload);
         byte[] body = Encoding.UTF8.GetBytes(json);
 
-        int type = IPAddress.HostToNetworkOrder(((int)MessageType.MSG_BOOST_STATUS));
-        byte[] headerType = BitConverter.GetBytes(type);
-        int len = IPAddress.HostToNetworkOrder(body.Length);
-        byte[] headerLen = BitConverter.GetBytes(len);
-
-        stream.Write(headerType, 0, headerType.Length);
-        stream.Write(headerLen, 0, headerLen.Length);
-        stream.Write(body, 0, body.Length);
+        return TrySend(MessageType.MSG_BOOST_STATUS, body);
     }
     #endregion
 
@@ -249,7 +200,10 @@ public class NetworkManager : MonoBehaviour
         }
         finally
         {
-            MainThreadDispatcher.Enqueue(() => gameManager.DisposeGame());
+            if (Interlocked.Exchange(ref _closeRequested, 1) == 0)
+            {
+                MainThreadDispatcher.Enqueue(() => DisposeClient());
+            }
         }
     }
 
@@ -323,6 +277,7 @@ public class NetworkManager : MonoBehaviour
         try
         {
             client = new TcpClient("127.0.0.1", 12345);
+            client.NoDelay = true;
             stream = client.GetStream();
             isRunning = true;
             connected = true;
@@ -334,14 +289,73 @@ public class NetworkManager : MonoBehaviour
             return false;
         }
     }
-
+    
+    // 정상 종료
     public void DisposeClient()
     {
-        SendPlayerLeft();
-        isRunning = false; // 루프 종료        
-        stream?.Close();
-        client?.Close();
-        thread?.Join();
+        // 1) 수신 루프 종료 신호 먼저
+        isRunning = false;
+
+        // 2) 가능하면 종료 통지 패킷을 안전하게 시도
+        try { SendPlayerLeft(); } catch { }
+
+        // 3) 소켓 정상 종료 → Read를 깨워서 finally로 가게 함
+        try { client?.Client?.Shutdown(SocketShutdown.Both); } catch { }
+
+        // 4) 스트림/소켓 닫기
+        try { stream?.Close(); } catch { }
+        try { client?.Close(); } catch { }
+
+        // 5) 수신 스레드 join (자기 자신이면 금지)
+        if (thread != null && thread.IsAlive && Thread.CurrentThread != thread)
+            thread.Join();
+
+        // 6) 최종 상태
+        connected = false;
+    }
+
+    // 비정상 종료
+    private void MarkClosed()
+    {
+        if (!connected) return;
+        connected = false;
+        isRunning = false;
+        try { client?.Client?.Shutdown(SocketShutdown.Both); } catch { }
+        try { stream?.Close(); } catch { }
+        try { client?.Close(); } catch { }
+    }
+
+    private bool TrySend(MessageType type, byte[] body)
+    {
+        if (!CanSend) return false;
+
+        try
+        {
+            int t = IPAddress.HostToNetworkOrder((int)type);
+            int len = IPAddress.HostToNetworkOrder(body?.Length ?? 0);
+
+            // 8바이트 헤더 + 바디를 하나의 버퍼로 구성
+            int bodyLen = body?.Length ?? 0;
+            byte[] buf = new byte[8 + bodyLen];
+
+            Buffer.BlockCopy(BitConverter.GetBytes(t), 0, buf, 0, 4);
+            Buffer.BlockCopy(BitConverter.GetBytes(len), 0, buf, 4, 4);
+            if (bodyLen > 0)
+                Buffer.BlockCopy(body, 0, buf, 8, bodyLen);
+
+            stream.Write(buf, 0, buf.Length);
+            return true;
+        }
+        catch (IOException)
+        {
+            MarkClosed();
+            return false;
+        }
+        catch (SocketException)
+        {
+            MarkClosed();
+            return false;
+        }
     }
     #endregion
 }

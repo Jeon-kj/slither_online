@@ -29,6 +29,7 @@ public class SlitherMove : MonoBehaviour
     void Update()
     {
         if (slither == null) return;
+        if (!networkManager.IsConnected) return;
 
         if (!botMode)
         {
@@ -38,7 +39,6 @@ public class SlitherMove : MonoBehaviour
                 mousePressed = pressedNow;
                 networkManager.SendBoostStatus(mousePressed); // true=클릭 시작, false=해제
             }
-            DebugUtil.Dbg("pressedNow: ", pressedNow);
         }
 
         timer += Time.deltaTime;
