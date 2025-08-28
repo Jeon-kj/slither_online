@@ -71,6 +71,14 @@ void message_sender::send_player_left(int fd, const std::string& body, ServerCon
 	}
 }
 
+void message_sender::send_player_left_locked(int fd, const std::string& body, ServerContext& ctx){
+	dbg_tag("SEQUENCE", "[message_sender::send_player_left]");
+	for(auto client_fd : ctx.client_fds){
+		if(client_fd == fd) continue;
+		utils::send_queue(client_fd, MSG_PLAYER_LEFT, body, ctx);
+	}
+}
+
 void message_sender::send_pos(int fd, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_sender::send_pos]");
 	// 지금 현재의 위치를 전송. (즉, 움직임 처리 함수 호출 이후에 호출해야함.)

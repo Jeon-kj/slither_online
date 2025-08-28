@@ -58,6 +58,35 @@ void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 	message_sender::send_food_spawn(new_foods, ctx);
 }
 
+void FoodManager::spawn_food_on_death_locked(int dead_id, ServerContext& ctx){
+	dbg_tag("SEQUENCE", "[FoodManager::spawn_food_on_death_locked] dead_id : ", dead_id);
+	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
+	ClientContext& dead_client = ctx.client_contexts[dead_id];
+
+	std::unordered_map<int, FoodContext> new_foods;
+	while(new_foods.size() < dead_client.body_len+1){
+		float x;
+		float y;
+		if(new_foods.size() == 0){
+			x = dead_client.head.x;
+			y = dead_client.head.y;
+		}
+		else{
+			Vector2 dead_body = dead_client.body_segments.back();
+			dead_client.body_segments.pop_back();
+			x = dead_body.x;
+			y = dead_body.y;
+		}
+		
+		int usable_id = pop_usable_id(ctx);
+		FoodContext food(usable_id, x, y);			
+		new_foods[usable_id] = food;
+		food_contexts[usable_id] = food;
+	}
+
+	message_sender::send_food_spawn(new_foods, ctx);
+}
+
 void FoodManager::del_food(int food_id, ServerContext &ctx){
 	dbg_tag("SEQUENCE", "[FoodManager::del_food] food_id : ", food_id);
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();

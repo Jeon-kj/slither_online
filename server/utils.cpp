@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <random>
+#include <cstring>
 
 void utils::error_handling(const std::string& msg){
 	dbg_tag("SEQUENCE", "[utils::error_handling]");
@@ -26,7 +27,11 @@ void utils::modify_epoll_events(int epoll_fd, int client_fd, uint32_t events) {
     ev.data.fd = client_fd;
 
     if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client_fd, &ev) == -1) {
-        throw std::runtime_error("epoll_ctl MOD failed");
+		int e = errno;
+        throw std::runtime_error(std::string("epoll_ctl failed: op=") + std::to_string(EPOLL_CTL_MOD) +
+                                 " fd=" + std::to_string(client_fd) +
+                                 " errno=" + std::to_string(e) +
+                                 " (" + std::strerror(e) + ")");
     }
 }
 

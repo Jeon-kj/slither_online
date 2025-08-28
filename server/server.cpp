@@ -220,6 +220,8 @@ void Server::main_loop(){
 				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 				dbg_tag("LOCK","[game_loop] server_mutex_ 완료");
 
+				std::vector<int> pending_kill_ids;
+
 				// slither move logic
 				if(!ctx_.client_fds.empty()){
 					for(auto client_fd: ctx_.client_fds){
@@ -230,7 +232,7 @@ void Server::main_loop(){
 						int client_id = ctx_.fd_to_id[client_fd];
 						
 						if(client.boost_status && client.body_len > 0){
-							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BOOST_SPEED, ctx_);
+							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BOOST_SPEED, pending_kill_ids, ctx_);
 							client.boost_timer += 0.02f;
 							if(client.boost_timer >= GameConfig::BOOST_TICK){
 								client.boost_timer = 0;
@@ -240,7 +242,11 @@ void Server::main_loop(){
 							}
 						}							
 						else
-							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BASIC_SPEED, ctx_);						
+							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BASIC_SPEED, pending_kill_ids, ctx_);						
+					}
+
+					for(auto dead_id: pending_kill_ids){
+						slither_manager::kill_slither_locked(dead_id, ctx_);
 					}
 					
 					for(auto client_fd: ctx_.client_fds){
@@ -269,6 +275,21 @@ void Server::main_loop(){
 void Server::disconnect_client(int fd){
 	dbg_tag("SEQUENCE", "[Server::disconnect_client]");
 	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
+	close(fd);
+	int client_id = ctx_.fd_to_id[fd];
+	ctx_.client_contexts.erase(client_id);
+	ctx_.fd_to_id.erase(fd);
+	ctx_.client_fds.erase(
+            std::remove(ctx_.client_fds.begin(), ctx_.client_fds.end(), fd),
+            ctx_.client_fds.end()
+        );
+
+	std::cout << "Client disconnected: " << fd << std::endl;
+}
+
+void Server::disconnect_client_locked(int fd){
+	dbg_tag("SEQUENCE", "[Server::disconnect_client]");
 	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
 	close(fd);
 	int client_id = ctx_.fd_to_id[fd];

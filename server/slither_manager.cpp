@@ -68,21 +68,27 @@ void slither_manager::advance_cursor_to_tarrget(int i, int id, ServerContext& ct
 	client.body_segments[i] = (*it).pos;
 }
 
-void slither_manager::move_client(int id, float delta_time, float speed, ServerContext& ctx){
+void slither_manager::move_client(int id, float delta_time, float speed, std::vector<int>& pending_kill_ids, ServerContext& ctx){
 	dbg_tag("SLITHER_MOVE", "[slither_manager::move_client]");
 	ClientContext& client = ctx.client_contexts[id];
 
 	float dx = std::cos(client.angle) * speed * delta_time;
     float dy = std::sin(client.angle) * speed * delta_time;
 
-	size_t len = client.body_segments.size();
-	int blen = std::min((int)len, client.body_len);
+	int len = std::min((int)client.body_segments.size(), client.body_len);
 
 	Vector2 new_pos(client.head.x + dx, client.head.y + dy);
 	
+	if (new_pos.x < -GameConfig::MAP_WIDTH/2  || new_pos.x > GameConfig::MAP_WIDTH/2 ||
+		new_pos.y < -GameConfig::MAP_HEIGHT/2 || new_pos.y > GameConfig::MAP_HEIGHT/2) 
+	{
+		pending_kill_ids.push_back(id);
+		return;
+	}
+
 	slither_manager::add_sample(new_pos, id, ctx);
 
-	float physical_len = GameConfig::SPACE * client.body_len;
+	float physical_len = GameConfig::SPACE * len;
 
 	slither_manager::trim_to_physical_len(physical_len, id, ctx);
 
@@ -145,4 +151,18 @@ void slither_manager::kill_slither(int target_id, ServerContext& ctx){
 	}
 
 	message_sender::send_player_left(target_fd, j.dump(), ctx);
+}
+
+void slither_manager::kill_slither_locked(int target_id, ServerContext& ctx){
+	dbg("[slither_manager::kill_slither_locked]");
+	// Slither 위치에 먹이 생성 + 먹이 생성 전송
+	ctx.food_manager.spawn_food_on_death_locked(target_id, ctx);
+
+	int target_fd = ctx.client_contexts[target_id].fd;
+	ctx.server()->disconnect_client_locked(target_fd);
+	// 사용자들에게 Slither 제거 메시지 전송
+	json j;
+	j["id"]=target_id;
+
+	message_sender::send_player_left_locked(target_fd, j.dump(), ctx);
 }

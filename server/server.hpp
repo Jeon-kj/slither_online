@@ -31,6 +31,7 @@ public:
 	void stop();	
 
 	void disconnect_client(int fd);
+	void disconnect_client_locked(int fd);
 	int get_epoll_fd() const {return epoll_fd_;}
 
 private:
