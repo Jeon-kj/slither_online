@@ -5,6 +5,7 @@
 #include "slither_manager.hpp"
 #include "debug.hpp"
 #include "game_config.hpp"
+#include "food_manager.hpp"
 
 #include <iostream>
 #include <unistd.h>
@@ -235,10 +236,12 @@ void Server::main_loop(){
 							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BOOST_SPEED, pending_kill_ids, ctx_);
 							client.boost_timer += 0.02f;
 							if(client.boost_timer >= GameConfig::BOOST_TICK){
+								std::vector<Vector2> trimmed_positions;
 								client.boost_timer = 0;
 								// body len 줄이는 로직
-								slither_manager::trim(client_id, ctx_);
-								message_sender::send_slither_length_update(client_id, -1, ctx_);
+								slither_manager::trim(client_id, trimmed_positions, ctx_);
+								ctx_.food_manager.spawn_food_on_boost(trimmed_positions, ctx_);
+								message_sender::send_slither_length_update_locked(client_id, -1, ctx_);
 							}
 						}							
 						else

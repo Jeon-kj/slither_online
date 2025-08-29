@@ -68,6 +68,7 @@ void slither_manager::advance_cursor_to_tarrget(int i, int id, ServerContext& ct
 	client.body_segments[i] = (*it).pos;
 }
 
+// PRECONDITION: caller must hold ctx.server_mutex.
 void slither_manager::move_client(int id, float delta_time, float speed, std::vector<int>& pending_kill_ids, ServerContext& ctx){
 	dbg_tag("SLITHER_MOVE", "[slither_manager::move_client]");
 	ClientContext& client = ctx.client_contexts[id];
@@ -100,6 +101,7 @@ void slither_manager::move_client(int id, float delta_time, float speed, std::ve
 	}
 }
 
+// PRECONDITION: caller must NOT hold ctx.server_mutex.
 void slither_manager::grow(int id, ServerContext& ctx){
 	dbg("[slither_manager::grow]");
 	ClientContext& client = ctx.client_contexts[id];
@@ -117,25 +119,30 @@ void slither_manager::grow(int id, ServerContext& ctx){
 	}
 }
 
-void slither_manager::trim(int id, ServerContext& ctx){
+// PRECONDITION: caller must hold ctx.server_mutex.
+void slither_manager::trim(int id, std::vector<Vector2>& trimmed_positions, ServerContext& ctx){
 	dbg("[slither_manager::trim]");
-	//std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ClientContext& client = ctx.client_contexts[id];	
 	if(client.body_len <= 0) return;
 	
+	trimmed_positions.clear();
+
 	client.body_len--;
+
+	if (client.body_segments.size() > static_cast<size_t>(client.body_len)) {
+		trimmed_positions.reserve(client.body_segments.size() - static_cast<size_t>(client.body_len));
+	}
+
 	while(client.body_segments.size() > client.body_len){
+		Vector2 position(client.body_segments.back().x, client.body_segments.back().y);
+		trimmed_positions.push_back(position);
+
 		client.body_segments.pop_back();
 		client.cursors.pop_back();
 	}
 }
 
-/*void slither_manager::update_body_len(int id, ServerContext &ctx){
-	dbg("[slither_manager::update_body_len]");
-	std::lock_guard<std::mutex> lock(ctx.server_mutex);
-	ctx.client_contexts[id].body_len = ctx.client_contexts[id].body_segments.size();
-}*/
-
+// PRECONDITION: caller must NOT hold ctx.server_mutex.
 void slither_manager::kill_slither(int target_id, ServerContext& ctx){
 	dbg("[slither_manager::kill_slither]");
 	// Slither 위치에 먹이 생성 + 먹이 생성 전송
@@ -153,6 +160,7 @@ void slither_manager::kill_slither(int target_id, ServerContext& ctx){
 	message_sender::send_player_left(target_fd, j.dump(), ctx);
 }
 
+// PRECONDITION: caller must hold ctx.server_mutex.
 void slither_manager::kill_slither_locked(int target_id, ServerContext& ctx){
 	dbg("[slither_manager::kill_slither_locked]");
 	// Slither 위치에 먹이 생성 + 먹이 생성 전송

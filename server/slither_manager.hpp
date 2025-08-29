@@ -8,7 +8,7 @@ namespace slither_manager {
     
     void move_client(int id, float delta_time, float speed, std::vector<int>& pending_kill_ids, ServerContext& ctx);
     void grow(int id, ServerContext& ctx);
-    void trim(int id, ServerContext& ctx);
+    void trim(int id, std::vector<Vector2>& trimmed_positions, ServerContext& ctx);
     void update_body_len(int id, ServerContext& ctx);
     void kill_slither(int target_id, ServerContext& ctx);
     void kill_slither_locked(int target_id, ServerContext& ctx);

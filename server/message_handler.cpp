@@ -239,7 +239,6 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 		//slither_manager::update_body_len(slither_id, ctx);
 		ctx.food_manager.del_food(food_id, ctx);
 		
-		std::lock_guard<std::mutex> lock(ctx.server_mutex);
 		message_sender::send_slither_length_update(slither_id, +1, ctx);
 		return;
 	}

@@ -28,4 +28,6 @@ namespace message_sender {
 	void send_food_remove(int food_id, ServerContext& ctx);
 
 	void send_slither_length_update(int slither_id, int delta, ServerContext& ctx);
+
+	void send_slither_length_update_locked(int slither_id, int delta, ServerContext& ctx);
 }

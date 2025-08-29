@@ -60,6 +60,7 @@ void message_sender::send_player_join(
 	}
 }
 
+// PRECONDITION: caller must NOT hold ctx.server_mutex.
 void message_sender::send_player_left(int fd, const std::string& body, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_sender::send_player_left]");
 	{
@@ -70,7 +71,7 @@ void message_sender::send_player_left(int fd, const std::string& body, ServerCon
 		}
 	}
 }
-
+// PRECONDITION: caller must hold ctx.server_mutex.
 void message_sender::send_player_left_locked(int fd, const std::string& body, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_sender::send_player_left]");
 	for(auto client_fd : ctx.client_fds){
@@ -115,6 +116,7 @@ void message_sender::send_chat(int fd, const std::string& body, ServerContext& c
 	}
 }
 
+// PRECONDITION: caller must hold ctx.server_mutex.
 void message_sender::send_food_spawn(std::unordered_map<int, FoodContext>& new_foods, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_sender::send_food_spawn]");
 	if(new_foods.empty()) return;
@@ -141,6 +143,7 @@ void message_sender::send_food_spawn(std::unordered_map<int, FoodContext>& new_f
 	}
 }
 
+// PRECONDITION: caller must NOT hold ctx.server_mutex.
 void message_sender::send_food_remove(int food_id, ServerContext& ctx){
 	dbg_tag("FOOD_REMOVE", "[message_sender::send_food_remove]");
 	json j;
@@ -154,10 +157,32 @@ void message_sender::send_food_remove(int food_id, ServerContext& ctx){
 	}	
 }
 
+// PRECONDITION: caller must NOT hold ctx.server_mutex.
 void message_sender::send_slither_length_update(int slither_id, int delta, ServerContext& ctx){
 	// delta = -1/+1
 	dbg_tag("SEQUENCE", "[message_sender::send_slither_length_update] slither_id : ", slither_id, ", delta : ", delta);
-	// std::lock_guard<std::mutex> lock(ctx.server_mutex);
+
+	json j;
+	{
+		std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		j["id"] = slither_id;
+		j["length"] = ctx.client_contexts[slither_id].body_len;
+		j["delta"] = delta;
+	}
+	
+	std::string send_body = j.dump();
+
+	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	for(int fd : ctx.client_fds)
+	{		
+		utils::send_queue(fd, MSG_SLITHER_LENGTH_UPDATE, send_body, ctx);
+	}	
+}
+
+// PRECONDITION: caller must hold ctx.server_mutex.
+void message_sender::send_slither_length_update_locked(int slither_id, int delta, ServerContext& ctx){
+	// delta = -1/+1
+	dbg_tag("SEQUENCE", "[message_sender::send_slither_length_update] slither_id : ", slither_id, ", delta : ", delta);
 
 	json j;
 	j["id"] = slither_id;

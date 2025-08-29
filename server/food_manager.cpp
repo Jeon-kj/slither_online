@@ -7,6 +7,7 @@
 
 #include <random>
 
+// PRECONDITION: caller must hold ctx.server_mutex.
 void FoodManager::spawn_food_random(ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[FoodManager::spawn_food_random]");
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
@@ -26,6 +27,7 @@ void FoodManager::spawn_food_random(ServerContext& ctx){
 	message_sender::send_food_spawn(new_foods, ctx);
 }
 
+// PRECONDITION: caller must NOT hold ctx.server_mutex.
 void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[FoodManager::spawn_food_on_death] dead_id : ", dead_id);
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
@@ -58,6 +60,7 @@ void FoodManager::spawn_food_on_death(int dead_id, ServerContext& ctx){
 	message_sender::send_food_spawn(new_foods, ctx);
 }
 
+// PRECONDITION: caller must hold ctx.server_mutex.
 void FoodManager::spawn_food_on_death_locked(int dead_id, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[FoodManager::spawn_food_on_death_locked] dead_id : ", dead_id);
 	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
@@ -82,6 +85,25 @@ void FoodManager::spawn_food_on_death_locked(int dead_id, ServerContext& ctx){
 		FoodContext food(usable_id, x, y);			
 		new_foods[usable_id] = food;
 		food_contexts[usable_id] = food;
+	}
+
+	message_sender::send_food_spawn(new_foods, ctx);
+}
+
+// PRECONDITION: caller must hold ctx.server_mutex.
+void FoodManager::spawn_food_on_boost(const std::vector<Vector2>& trimmed_positions, ServerContext& ctx){
+	std::unordered_map<int, FoodContext>& food_contexts = ctx.food_manager.get_all_food_contexts();
+
+	std::unordered_map<int, FoodContext> new_foods;
+	{
+		for(int i=0; i<trimmed_positions.size(); i++){
+			Vector2 position = trimmed_positions[i];
+			
+			int usable_id = pop_usable_id(ctx);
+			FoodContext food(usable_id, position.x, position.y);
+			new_foods[usable_id] = food;
+			food_contexts[usable_id] = food;
+		}
 	}
 
 	message_sender::send_food_spawn(new_foods, ctx);
