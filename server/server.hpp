@@ -47,5 +47,6 @@ private:
 	void accept_client();
 	void handle_read(int fd);
 	void handle_write(int fd);
+	void handle_write_locked(int fd);
 	void main_loop();
 };

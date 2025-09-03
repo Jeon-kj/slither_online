@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <algorithm>
 #include <thread>
+#include <cstring>
 
 Server::Server(int port, ServerContext& ctx)
 	: port_(port), ctx_(ctx)
@@ -72,28 +73,36 @@ void Server::setup_epoll(){
 void Server::accept_client(){
 	dbg_tag("SEQUENCE", "[Server::accept_client]");
 
-	epoll_event ev{};
 	sockaddr_in client_addr{};
 	socklen_t addr_len = sizeof(client_addr);
 
 	int client_fd = accept(server_fd_, (sockaddr*)&client_addr, &addr_len);
-	if(client_fd == -1) utils::error_handling("accept error");
+	if(client_fd == -1) {
+		utils::error_handling("accept error");
+		return;
+	}
 	
 	utils::set_nonblock(client_fd);
 
-	ev.events = EPOLLIN;
-	ev.data.fd = client_fd;
-
-	epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &ev);
-
 	{
 		std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-		ctx_.client_contexts.emplace(
-			client_fd,
-			ClientContext{client_fd, client_fd}
-		);
-		ctx_.client_fds.push_back(client_fd);
+		ClientContext c{};
+		c.fd = client_fd;
+		c.id = client_fd;
+		c.epoll_registered = false;
+		c.current_events = 0;
+		c.closing = false;
+
+		ctx_.client_contexts.emplace(c.fd, c);
 		ctx_.fd_to_id[client_fd] = client_fd;
+		ctx_.client_fds.push_back(client_fd);
+
+		ClientContext& client = ctx_.client_contexts[client_fd];
+
+		if (!utils::modify_epoll_events(epoll_fd_, client, EPOLLIN, *this)) {
+			return;
+		}
+
 	}
 
 	std::cout << "Client connected: " << client_fd << std::endl;
@@ -105,12 +114,20 @@ void Server::handle_read(int fd){
 	while(true)	{
 		ssize_t n = recv(fd, buf, sizeof(buf), 0);
 		if(n > 0){
-			dbg_tag("SEQUENCE", "[handle_read] n > 0");
 			{
-				//std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-				int client_id = ctx_.fd_to_id[fd];
-				ctx_.client_contexts[client_id].recv_buffer.insert(
-					ctx_.client_contexts[client_id].recv_buffer.end(), 
+				std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+
+				auto it = ctx_.fd_to_id.find(fd);
+                if (it == ctx_.fd_to_id.end()) return;
+				int client_id = it->second;
+
+				ClientContext& client = ctx_.client_contexts[client_id];
+
+				if (client.closing || client.fd < 0) return;
+				
+				
+				client.recv_buffer.insert(
+					client.recv_buffer.end(), 
 					buf, 
 					buf+n
 				);
@@ -121,8 +138,11 @@ void Server::handle_read(int fd){
 			while(true) {
 				bool loop_check;
 				{
-					//std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-					int client_id = ctx_.fd_to_id[fd];
+					std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+					auto it = ctx_.fd_to_id.find(fd);
+                    if (it == ctx_.fd_to_id.end()) break;
+					int client_id = it->second;
+
 					loop_check = message_handler::extract_message(client_id, type, body, ctx_);
 				}
 
@@ -132,12 +152,10 @@ void Server::handle_read(int fd){
 			}
 		}
 		else if(n == 0){
-			dbg_tag("SEQUENCE", "[handle_read] n == 0");
 			disconnect_client(fd);
 			break;
 		}
 		else {
-			dbg_tag("SEQUENCE", "[handle_read] else, n : ", n);
 			if(errno == EAGAIN || errno == EWOULDBLOCK) break;
 
 			disconnect_client(fd);
@@ -148,44 +166,48 @@ void Server::handle_read(int fd){
 
 void Server::handle_write(int fd){
 	dbg_tag("SEQUENCE", "[Server::handle_write]");
-	bool should_disconnect = false;
-
 	{
 		std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-		int client_id = ctx_.fd_to_id[fd];
-		ClientContext& client = ctx_.client_contexts[client_id];	
-
-		while (!client.send_queue.empty()) {
-			auto& msg = client.send_queue.front();
-			ssize_t sent = send(fd, msg.data(), msg.size(), 0);
-			if (sent < 0) {
-				if (errno == EAGAIN || errno == EWOULDBLOCK) {
-					// 버퍼 꽉 찼음. 다음 EPOLLOUT을 기다림
-					break;
-				} else {
-					// 진짜 에러 발생: 연결 종료 처리
-					dbg("disconnect_client (handle_write)");
-					should_disconnect = true;
-					break;
-				}
-			}
-
-			if (sent < (ssize_t)msg.size()) {
-				// 아직 덜 보낸 데이터가 남았음
-				// 덜 보낸 부분으로 msg를 잘라야 함
-				msg.erase(msg.begin(), msg.begin() + sent);
-				break;
-			}
-
-			client.send_queue.pop_front();
-		}
-
-		if (client.send_queue.empty() && !should_disconnect) {
-			utils::modify_epoll_events(epoll_fd_, fd, EPOLLIN);
-		}
+		handle_write_locked(fd);
 	}
-	
-	if(should_disconnect) disconnect_client(fd);
+}
+
+void Server::handle_write_locked(int fd){
+	dbg_tag("SEQUENCE", "[Server::handle_write_locked]");
+	auto it = ctx_.fd_to_id.find(fd);
+	if (it == ctx_.fd_to_id.end()) return;
+	ClientContext& client = ctx_.client_contexts[it->second];
+
+	if (client.closing || client.fd < 0) return;
+
+	while (!client.send_queue.empty()) {
+		auto& msg = client.send_queue.front();
+		ssize_t sent = send(fd, msg.data(), msg.size(), 0);
+		if (sent < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				// 버퍼 꽉 찼음. 다음 EPOLLOUT을 기다림
+				break;
+			} else {
+				// 진짜 에러 발생: 연결 종료 처리
+				dbg("disconnect_client (handle_write)");
+				disconnect_client_locked(fd);
+				return;
+			}
+		}
+
+		if (sent < (ssize_t)msg.size()) {
+			// 아직 덜 보낸 데이터가 남았음
+			// 덜 보낸 부분으로 msg를 잘라야 함
+			msg.erase(msg.begin(), msg.begin() + sent);
+			break;
+		}
+
+		client.send_queue.pop_front();
+	}
+
+	if (client.send_queue.empty()) {
+		utils::modify_epoll_events(epoll_fd_, client, EPOLLIN, *this);
+	}
 }
 
 void Server::main_loop(){
@@ -194,22 +216,35 @@ void Server::main_loop(){
 	auto network_loop = [&]() {
 		while(running_) {
 			int nfds = epoll_wait(epoll_fd_, events, GameConfig::MAX_EVENTS, -1);
+			if (nfds < 0) {
+				if (errno == EINTR) continue; // 시그널 깨짐(정삭적 중단)
+				dbg_tag("EPOLL","epoll_wait fail errno=", errno, " ", std::strerror(errno));
+				break; // 혹은 안전한 종료 경로로
+			}
 			for(int i=0; i<nfds; ++i){
 				int fd = events[i].data.fd;
+				uint32_t ev = events[i].events;
+
 				if(fd == server_fd_){
 					// 소켓 accept 처리
 					accept_client();
-				}					
-				else{
-					if(events[i].events & EPOLLIN){
-						// 클라이언트 소켓 송수신 처리
-						handle_read(fd);
-					}
-					// EPOLLOUT 처리
-					if (events[i].events & EPOLLOUT) {
-						handle_write(fd);
-					}
-				}					
+				}
+				
+				if (ev & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
+					disconnect_client(fd);
+					continue;
+				}
+
+				if(ev & EPOLLIN){
+					// 클라이언트 소켓 송수신 처리
+					handle_read(fd);
+				}
+
+				// EPOLLOUT 처리
+				if (ev & EPOLLOUT) {
+					std::lock_guard<std::mutex> lock(ctx_.server_mutex);
+            		if (ctx_.fd_to_id.count(fd)) handle_write_locked(fd);
+				}				
 			}
 		}
 	};
@@ -226,15 +261,19 @@ void Server::main_loop(){
 				// slither move logic
 				if(!ctx_.client_fds.empty()){
 					for(auto client_fd: ctx_.client_fds){
-						ClientContext& client = ctx_.client_contexts[client_fd];
+						auto it = ctx_.fd_to_id.find(client_fd);
+						if (it == ctx_.fd_to_id.end()) return;
+						int client_id = it->second;
+
+						auto itc = ctx_.client_contexts.find(client_id);
+						if (itc == ctx_.client_contexts.end()) return;
+						ClientContext& client = itc->second;
 
 						if(!client.activation_flag) continue;
-						dbg_tag("SLITHER_MOVE", "[game_loop] client_fd:", client_fd);
-						int client_id = ctx_.fd_to_id[client_fd];
 						
 						if(client.boost_status && client.body_len > 0){
 							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BOOST_SPEED, pending_kill_ids, ctx_);
-							client.boost_timer += 0.02f;
+							client.boost_timer += GameConfig::DELTA_TIME;
 							if(client.boost_timer >= GameConfig::BOOST_TICK){
 								std::vector<Vector2> trimmed_positions;
 								client.boost_timer = 0;
@@ -253,7 +292,14 @@ void Server::main_loop(){
 					}
 					
 					for(auto client_fd: ctx_.client_fds){
-						if(!ctx_.client_contexts[client_fd].activation_flag) continue;
+						auto it = ctx_.fd_to_id.find(client_fd);
+						if (it == ctx_.fd_to_id.end()) return;
+						int client_id = it->second;
+
+						auto itc = ctx_.client_contexts.find(client_id);
+						if (itc == ctx_.client_contexts.end()) return;
+						
+						if(!itc->second.activation_flag) continue;
 						message_sender::send_pos(client_fd, ctx_);
 					}			
 				}
@@ -275,33 +321,59 @@ void Server::main_loop(){
 	net_thread.join();	
 }
 
+// PRECONDITION: caller must NOT hold ctx.server_mutex.
 void Server::disconnect_client(int fd){
 	dbg_tag("SEQUENCE", "[Server::disconnect_client]");
 	std::lock_guard<std::mutex> lock(ctx_.server_mutex);
-	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
-	close(fd);
-	int client_id = ctx_.fd_to_id[fd];
-	ctx_.client_contexts.erase(client_id);
-	ctx_.fd_to_id.erase(fd);
-	ctx_.client_fds.erase(
-            std::remove(ctx_.client_fds.begin(), ctx_.client_fds.end(), fd),
-            ctx_.client_fds.end()
-        );
 
-	std::cout << "Client disconnected: " << fd << std::endl;
+	disconnect_client_locked(fd);
 }
 
+// PRECONDITION: caller must hold ctx.server_mutex.
 void Server::disconnect_client_locked(int fd){
 	dbg_tag("SEQUENCE", "[Server::disconnect_client]");
-	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
-	close(fd);
-	int client_id = ctx_.fd_to_id[fd];
-	ctx_.client_contexts.erase(client_id);
-	ctx_.fd_to_id.erase(fd);
-	ctx_.client_fds.erase(
-            std::remove(ctx_.client_fds.begin(), ctx_.client_fds.end(), fd),
-            ctx_.client_fds.end()
-        );
 
-	std::cout << "Client disconnected: " << fd << std::endl;
+	auto it = ctx_.fd_to_id.find(fd);
+    if (it == ctx_.fd_to_id.end()) return;
+
+	int client_id = it->second;
+
+	auto itc = ctx_.client_contexts.find(client_id);
+    if (itc == ctx_.client_contexts.end()) {
+        ctx_.fd_to_id.erase(fd);
+        utils::erase_from_vector(ctx_.client_fds, fd);
+        return;
+    }
+
+	ClientContext& client = itc->second;
+
+	if (client.closing || client.fd < 0) {
+        // 이미 정리 중/정리됨
+        ctx_.fd_to_id.erase(fd);
+        utils::erase_from_vector(ctx_.client_fds, fd);
+        ctx_.client_contexts.erase(itc);
+        return;
+    }
+
+	client.closing = true;	// 먼저 닫힘 표시
+    int cfd = client.fd;	// 로컬로 보관(아래에서 fd=-1로 바꿀 예정)
+
+	if (cfd >= 0) {
+		// epoll에서 제거(실패 무시: 이미 사라졌을 수 있음)
+        epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, cfd, nullptr);
+
+        ::close(cfd);
+    }
+
+    // 상태 플래그 표준화
+    client.fd = -1;
+    client.epoll_registered = false;
+    client.current_events = 0;
+
+    // 컨테이너/매핑 정리
+    ctx_.fd_to_id.erase(fd);
+    utils::erase_from_vector(ctx_.client_fds, fd);
+    ctx_.client_contexts.erase(itc);
+
+    std::cout << "Client disconnected: " << cfd << std::endl;
 }

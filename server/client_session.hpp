@@ -19,12 +19,17 @@ struct SlitherPath{
 };
 
 struct ClientContext{
-	int fd;
-	int id;
+	int fd=-1;
+	int id=-1;
 
-	// 변수 초기화 완료 여부
-	bool activation_flag = false;
+	// fd관리
+	bool epoll_registered = false;   // ADD 성공 시 true
+    bool closing = false;            // disconnect 진행 중
+    uint32_t current_events = 0;     // epoll에 실제 등록된 이벤트
 
+	// 변수 초기화 완료 여부 / join 이후 활성화
+	bool activation_flag = false; 
+	
 	// 송수신
 	std::vector<char> recv_buffer;
 	std::deque<std::vector<char>> send_queue;

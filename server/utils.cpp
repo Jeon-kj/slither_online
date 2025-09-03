@@ -20,21 +20,71 @@ int utils::set_nonblock(int fd){
 	return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-void utils::modify_epoll_events(int epoll_fd, int client_fd, uint32_t events) {
+// PRECONDITION: caller must hold ctx_.server_mutex.
+void utils::erase_from_vector(std::vector<int>& v, int fd) {
+    v.erase(std::remove(v.begin(), v.end(), fd), v.end());
+}
+
+bool utils::fd_valid(int fd){
+    return fd >= 0 && !(fcntl(fd, F_GETFD) == -1 && errno == EBADF);
+}
+
+// PRECONDITION: caller must hold ctx.server_mutex.
+bool utils::modify_epoll_events(int epoll_fd, ClientContext& client, uint32_t events, Server& server) {
 	dbg_tag("SEQUENCE", "[utils::modify_epoll_events]");
+	// 닫힘/무효 FD 가드(EBADF 방지)
+	if (client.closing || client.fd < 0 || !utils::fd_valid(client.fd)) return false;
+
     epoll_event ev{};
     ev.events = events;
-    ev.data.fd = client_fd;
+    ev.data.fd = client.fd;
 
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client_fd, &ev) == -1) {
-		int e = errno;
-        throw std::runtime_error(std::string("epoll_ctl failed: op=") + std::to_string(EPOLL_CTL_MOD) +
-                                 " fd=" + std::to_string(client_fd) +
-                                 " errno=" + std::to_string(e) +
-                                 " (" + std::strerror(e) + ")");
+	if (!client.epoll_registered) {
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &ev) == 0) {
+            client.epoll_registered = true;
+			client.current_events = events;
+            return true;
+        } else {
+            int e = errno;
+            dbg_tag("EPOLL", "ADD fail fd=", client.fd," errno=", e," msg=", std::strerror(e));
+            client.closing = true;
+            server.disconnect_client_locked(client.fd);
+            return false;
+        }
+    }
+
+	if (client.current_events == events) return true; // 불필요한 MOD 방지
+
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client.fd, &ev) == 0) {
+        client.current_events = events;
+        return true;
+    }
+
+	int e = errno;
+    if (e == ENOENT) {
+        // 등록이 풀렸다면 ADD로 복구 시도
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client.fd, &ev) == 0) {
+            client.epoll_registered = true;
+            client.current_events = events;
+            dbg_tag("EPOLL", "MOD->ADD recovered fd=", client.fd);
+            return true;
+        } else {
+            // 복구 실패
+            dbg_tag("EPOLL", "ADD recover fail fd=", client.fd, " errno=", errno, " msg=", std::strerror(errno));
+            client.closing = true; 
+            server.disconnect_client_locked(client.fd);
+            return false;
+        }
+    } else {
+        // EINVAL, EPERM, EBADF 등
+        dbg_tag("EPOLL", "MOD fail fd=", client.fd, " errno=", e, " msg=", std::strerror(e));
+        client.closing = true;
+        server.disconnect_client_locked(client.fd);
+        return false;
     }
 }
 
+// PRECONDITION: caller must hold ctx.server_mutex.
 void utils::send_queue(int fd, int32_t type, const std::string& body, ServerContext& ctx){
 	dbg_tag("SEND", "[utils::send_queue] type : ", type, ", body : ", body);
 	std::vector<char> packet;
@@ -55,8 +105,9 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 		body.end());
 
 	int client_id = ctx.fd_to_id[fd];
-	ctx.client_contexts[client_id].send_queue.push_back(packet);
-	utils::modify_epoll_events(ctx.server()->get_epoll_fd(), fd, EPOLLIN | EPOLLOUT);
+	ClientContext& client = ctx.client_contexts[client_id];
+	client.send_queue.push_back(packet);
+	utils::modify_epoll_events(ctx.server()->get_epoll_fd(), client, EPOLLIN | EPOLLOUT, *ctx.server());
 }
 
 float utils::random_float(float min, float max) {
