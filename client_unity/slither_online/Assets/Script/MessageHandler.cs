@@ -51,6 +51,7 @@ public class MessageHandler : MonoBehaviour
         {
             MainThreadDispatcher.Enqueue(() => {
                 slitherManager.UpdateSlitherPos(payload);
+                slitherManager.UpdateSlitherHeadAngle(payload);
             });
         }        
     }

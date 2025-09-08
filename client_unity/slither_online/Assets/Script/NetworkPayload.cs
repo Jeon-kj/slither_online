@@ -25,6 +25,7 @@ namespace Slither.Protocol
         public int id;
         public float x;
         public float y;
+        public float angle;
     }
 
     [Serializable]

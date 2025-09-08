@@ -252,4 +252,15 @@ public class SlitherManager : MonoBehaviour
             networkManager.SendHit(targetId, hitPos);
         }
     }
+
+    public void UpdateSlitherHeadAngle(MovePayload payload)
+    {
+        if (!ContainsId(payload.id)) return;
+
+        SlitherContext slither = GetSlither(payload.id);
+        GameObject headObj = slither.GetHeadObject();
+
+        var deg = payload.angle * Mathf.Rad2Deg;
+        headObj.transform.rotation = Quaternion.Euler(0f, 0f, deg);
+    }
 }
