@@ -94,7 +94,8 @@ void message_sender::send_pos(int fd, ServerContext& ctx){
 			positions.push_back({
 				{"id", client.id},
 				{"x", client.head.x},
-				{"y", client.head.y}
+				{"y", client.head.y},
+				{"angle", client.angle}
 			});
 		}		
 	}
