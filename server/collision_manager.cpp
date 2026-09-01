@@ -84,14 +84,18 @@ void collision_manager::check_collision_headToFood(int slither_id, ServerContext
 
 void collision_manager::apply_collision_results(ServerContext& ctx){
 	for(auto& [slither_id, food_id] : collision_manager::eat_events){
+		if(std::find(collision_manager::dead_slither_ids.begin(), collision_manager::dead_slither_ids.end(), slither_id) != collision_manager::dead_slither_ids.end()) continue;
+		if(ctx.client_contexts.find(slither_id) == ctx.client_contexts.end()) continue;
+		if(ctx.food_manager.get_all_food_contexts().find(food_id) == ctx.food_manager.get_all_food_contexts().end()) continue;
+
 		dbg_tag("EAT", "충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
 		slither_manager::grow(slither_id, ctx);
-		ctx.food_manager.del_food(food_id, ctx); // 내부에서 lock 호출
+		ctx.food_manager.del_food(food_id, ctx);
 		message_sender::send_slither_length_update_locked(slither_id, +1, ctx);
-		continue;
 	}
 
 	for(int dead_id : collision_manager::dead_slither_ids){
+		if(ctx.client_contexts.find(dead_id) == ctx.client_contexts.end()) continue;
 		dbg_tag("HIT", "충돌 유효: (slither_id)", dead_id, "가 죽었습니다.");
 		slither_manager::kill_slither_locked(dead_id, ctx);
 	}
