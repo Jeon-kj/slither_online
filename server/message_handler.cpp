@@ -5,6 +5,7 @@
 #include "message_sender.hpp"
 #include "vector2.hpp"
 #include "slither_manager.hpp"
+#include "game_config.hpp"
 
 #include <arpa/inet.h>
 #include <string>
@@ -68,7 +69,8 @@ void message_handler::handle_message(
 		case MSG_CHAT:
 			message_handler::handle_chat(id, body, ctx);
 			break;
-
+		
+		/*
 		case MSG_HIT:
 			message_handler::handle_hit(id, body, ctx);
 			break;
@@ -76,7 +78,7 @@ void message_handler::handle_message(
 		case MSG_EAT:
 			message_handler::handle_eat(id, body, ctx);
 			break;
-
+		*/
 		case MSG_BOOST_STATUS:
 			message_handler::handle_boost_status(id, body, ctx);
 			break;
@@ -99,8 +101,8 @@ void message_handler::handle_player_join(
 
 		ClientContext& client = ctx.client_contexts[id];		
 		client.id = id;
-		client.head.x = rand() % 10 - 5;
-		client.head.y = rand() % 10 - 5;
+		client.head.x = rand() % (int)(GameConfig::MAP_WIDTH - 2*GameConfig::SPAWN_MARGIN) - GameConfig::MAP_WIDTH/2 + GameConfig::SPAWN_MARGIN;
+		client.head.y = rand() % (int)(GameConfig::MAP_HEIGHT - 2*GameConfig::SPAWN_MARGIN) - GameConfig::MAP_HEIGHT/2 + GameConfig::SPAWN_MARGIN;
 		client.turn_dir = "w";
 		client.angle = M_PI / 2.0f;
 
@@ -151,14 +153,9 @@ void message_handler::handle_chat(int id, const std::string& body, ServerContext
 	message_sender::send_chat(fd, body, ctx);
 }
 
+/*
 void message_handler::handle_hit(int id, const std::string& body, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_handler::handle_hit]");
-	/*
-	struct MsgHitPayload {
-		int winnerSlitherId;   // 충돌 대상의 고유 ID
-		float reportedX;       // 충돌 지점
-		float reportedY;
-	}*/
 	json j = json::parse(body);
 	int loser_slither_id = id;
 	int winner_slither_id = j["winnerSlitherId"];
@@ -203,12 +200,6 @@ void message_handler::handle_hit(int id, const std::string& body, ServerContext&
 
 void message_handler::handle_eat(int id, const std::string& body, ServerContext& ctx){
 	dbg_tag("EAT", "[message_handler::handle_eat]");
-	/*
-	struct MsgEatPayload {
-		int food_id;
-		float reported_x;
-		float reported_y;
-	}*/
 
 	json j = json::parse(body);
 	int slither_id = id;
@@ -245,7 +236,7 @@ void message_handler::handle_eat(int id, const std::string& body, ServerContext&
 
 	dbg_tag("EAT", "[handler_eat] 충돌 무효: 충돌 지점과 가까운 body segment가 없습니다.");	
 }
-
+*/
 void message_handler::handle_boost_status(int id, const std::string& body, ServerContext& ctx){
 	/*
 	struct MsgBoostStatusPayload {

@@ -47,6 +47,11 @@ struct ClientContext{
 	float angle;
 	std::string turn_dir;	
 
+	// 스폰 시각
+	float spawn_time;
+	// 현재 충돌 판정 가능 여부
+	bool collision_enabled = false;
+
 	ClientContext() = default;
 	ClientContext(int fd_, int id_) : fd(fd_), id(id_) {}
 };

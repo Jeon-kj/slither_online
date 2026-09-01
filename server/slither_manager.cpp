@@ -101,12 +101,12 @@ void slither_manager::move_client(int id, float delta_time, float speed, std::ve
 	}
 }
 
-// PRECONDITION: caller must NOT hold ctx.server_mutex.
+// PRECONDITION: caller must hold ctx.server_mutex.
 void slither_manager::grow(int id, ServerContext& ctx){
 	dbg("[slither_manager::grow]");
 	ClientContext& client = ctx.client_contexts[id];
 
-	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	//std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	client.body_len++;
 	while(client.body_segments.size() < client.body_len){
 		int body_segment_size = client.body_segments.size();

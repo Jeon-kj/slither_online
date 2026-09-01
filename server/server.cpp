@@ -6,6 +6,7 @@
 #include "debug.hpp"
 #include "game_config.hpp"
 #include "food_manager.hpp"
+#include "collision_manager.hpp"
 
 #include <iostream>
 #include <unistd.h>
@@ -306,6 +307,9 @@ void Server::main_loop(){
 				else{
 					dbg_tag("SLITHER_MOVE", "[game_loop] 대기 중 - 클라이언트 없음");
 				}
+
+				// collision check logic
+				collision_manager::check_collision_all(ctx_);
 
 				// food spawn logic
 				ctx_.food_manager.spawn_food_random(ctx_);
