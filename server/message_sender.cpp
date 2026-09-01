@@ -159,7 +159,7 @@ void message_sender::send_food_remove(int food_id, ServerContext& ctx){
 }
 
 // PRECONDITION: caller must hold ctx.server_mutex.
-void send_food_remove_locked(int food_id, ServerContext& ctx){
+void message_sender::send_food_remove_locked(int food_id, ServerContext& ctx){
 	dbg_tag("FOOD_REMOVE", "[message_sender::send_food_remove_locked]");
 	json j;
 	j["id"] = food_id;

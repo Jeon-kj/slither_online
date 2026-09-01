@@ -8,6 +8,11 @@
 #include <algorithm>
 #include <vector>
 
+namespace collision_manager {
+	std::vector<int> dead_slither_ids;	// 사망 예정 플레이어 ID 집합
+	std::vector<std::pair<int, int>> eat_events; // 먹이를 획득할 플레이어와 먹이 ID
+}
+
 void collision_manager::check_collision_all(ServerContext& ctx){
 	for(int i=0; i<ctx.client_fds.size(); i++){
 		int slither_id = ctx.fd_to_id[ctx.client_fds[i]];

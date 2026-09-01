@@ -115,7 +115,8 @@ void FoodManager::del_food(int food_id, ServerContext &ctx){
 	food_contexts.erase(food_id);
 	push_usable_id(food_id, ctx);
 
-	message_sender::send_food_remove(food_id, ctx);
+	//message_sender::send_food_remove(food_id, ctx);
+	message_sender::send_food_remove_locked(food_id, ctx);
 }
 
 int FoodManager::pop_usable_id(ServerContext &ctx){
