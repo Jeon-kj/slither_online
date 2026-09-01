@@ -109,6 +109,9 @@ void message_handler::handle_player_join(
 		client.body_len = 0;
 		client.path.emplace_back(client.head, 0.0f);
 		
+		client.spawn_time = 0.0f;
+		client.collision_enabled = false;
+
 		j["id"] = client.id;
 		j["x"] = client.head.x;
 		j["y"] = client.head.y;

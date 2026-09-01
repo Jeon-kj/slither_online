@@ -1,5 +1,4 @@
 ﻿#include "server.hpp"
-#include <vector>
 
 namespace collision_manager {
 	void check_collision_all(ServerContext& ctx);

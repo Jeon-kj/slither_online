@@ -158,6 +158,19 @@ void message_sender::send_food_remove(int food_id, ServerContext& ctx){
 	}	
 }
 
+// PRECONDITION: caller must hold ctx.server_mutex.
+void send_food_remove_locked(int food_id, ServerContext& ctx){
+	dbg_tag("FOOD_REMOVE", "[message_sender::send_food_remove_locked]");
+	json j;
+	j["id"] = food_id;
+	std::string send_body = j.dump();
+	
+	for(int fd : ctx.client_fds)
+	{		
+		utils::send_queue(fd, MSG_FOOD_REMOVE, send_body, ctx);
+	}	
+}
+
 // PRECONDITION: caller must NOT hold ctx.server_mutex.
 void message_sender::send_slither_length_update(int slither_id, int delta, ServerContext& ctx){
 	// delta = -1/+1

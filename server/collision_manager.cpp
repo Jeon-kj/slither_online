@@ -6,8 +6,9 @@
 #include "debug.hpp"
 
 #include <algorithm>
+#include <vector>
 
-void check_collision_all(ServerContext& ctx){
+void collision_manager::check_collision_all(ServerContext& ctx){
 	for(int i=0; i<ctx.client_fds.size(); i++){
 		int slither_id = ctx.fd_to_id[ctx.client_fds[i]];
 		if(ctx.client_contexts[slither_id].collision_enabled == false) continue;
@@ -17,7 +18,7 @@ void check_collision_all(ServerContext& ctx){
 	}
 }
 
-void check_collision_headToHead(int slither_id, ServerContext& ctx){
+void collision_manager::check_collision_headToHead(int slither_id, ServerContext& ctx){
 	Vector2 head_pos = ctx.client_contexts[slither_id].head;
 
 	// 머리끼리 충돌 체크
@@ -41,7 +42,7 @@ void check_collision_headToHead(int slither_id, ServerContext& ctx){
 	}
 }
 
-void check_collision_headToBody(int slither_id, ServerContext& ctx){
+void collision_manager::check_collision_headToBody(int slither_id, ServerContext& ctx){
 	Vector2 head_pos = ctx.client_contexts[slither_id].head;
 
 	// 머리-몸통 충돌 체크
@@ -63,7 +64,7 @@ void check_collision_headToBody(int slither_id, ServerContext& ctx){
 	}
 }
 
-void check_collision_headToFood(int slither_id, ServerContext& ctx){
+void collision_manager::check_collision_headToFood(int slither_id, ServerContext& ctx){
 	Vector2 head_pos = ctx.client_contexts[slither_id].head;
 
 	for(auto& [food_id, food_ctx] : ctx.food_manager.get_all_food_contexts()){
@@ -76,19 +77,20 @@ void check_collision_headToFood(int slither_id, ServerContext& ctx){
 	}
 }
 
-void apply_collision_results(ServerContext& ctx){
+void collision_manager::apply_collision_results(ServerContext& ctx){
+	for(auto& [slither_id, food_id] : collision_manager::eat_events){
+		dbg_tag("EAT", "충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
+		slither_manager::grow(slither_id, ctx);
+		ctx.food_manager.del_food(food_id, ctx); // 내부에서 lock 호출
+		message_sender::send_slither_length_update_locked(slither_id, +1, ctx);
+		continue;
+	}
+
 	for(int dead_id : collision_manager::dead_slither_ids){
 		dbg_tag("HIT", "충돌 유효: (slither_id)", dead_id, "가 죽었습니다.");
 		slither_manager::kill_slither_locked(dead_id, ctx);
 	}
-
-	for(auto& [slither_id, food_id] : collision_manager::eat_events){
-		dbg_tag("EAT", "충돌 유효: (slither_id)", slither_id, "가 먹었습니다. (food_id)", food_id, "를.");
-		slither_manager::grow(slither_id, ctx);
-		ctx.food_manager.del_food(food_id, ctx);
-		message_sender::send_slither_length_update(slither_id, +1, ctx);
-		continue;
-	}
+	
 	collision_manager::dead_slither_ids.clear();
 	collision_manager::eat_events.clear();
 }

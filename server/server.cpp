@@ -272,6 +272,11 @@ void Server::main_loop(){
 
 						if(!client.activation_flag) continue;
 						
+						client.spawn_time += GameConfig::DELTA_TIME;
+						if(client.spawn_time >= GameConfig::SPAWN_IMMUNITY_TIME){
+							client.collision_enabled = true;
+						}
+
 						if(client.boost_status && client.body_len > 0){
 							slither_manager::move_client(client_id, GameConfig::DELTA_TIME, GameConfig::BOOST_SPEED, pending_kill_ids, ctx_);
 							client.boost_timer += GameConfig::DELTA_TIME;
@@ -309,7 +314,10 @@ void Server::main_loop(){
 				}
 
 				// collision check logic
-				collision_manager::check_collision_all(ctx_);
+				if(GameConfig::ENABLE_COLLISION){
+					collision_manager::check_collision_all(ctx_);
+					collision_manager::apply_collision_results(ctx_);
+				}				
 
 				// food spawn logic
 				ctx_.food_manager.spawn_food_random(ctx_);

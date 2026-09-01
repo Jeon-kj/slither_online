@@ -11,4 +11,5 @@ add_executable(MyServer
     utils.cpp
     slither_manager.cpp
     food_manager.cpp
+    collision_manager.cpp
 )

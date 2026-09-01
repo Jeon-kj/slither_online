@@ -17,9 +17,9 @@ struct GameConfig {
     // 서버 충돌 활성화 여부
     static constexpr bool ENABLE_COLLISION = true;
     // 머리 반경
-    static constexpr float HEAD_RADIUS = 5.0f;
+    static constexpr float HEAD_RADIUS = 1.0f;
     // 몸통 반경
-    static constexpr float BODY_RADIUS = 3.0f;
+    static constexpr float BODY_RADIUS = 1.0f;
     // 먹이 반경
     static constexpr float FOOD_RADIUS = 1.0f;
     // 스폰 충돌 면역 시간
