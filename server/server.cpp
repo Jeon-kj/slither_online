@@ -47,6 +47,13 @@ void Server::stop(){
 void Server::setup_server_socket(){
 	dbg_tag("SEQUENCE", "[Server::setup_server_socket]");
 	server_fd_ = socket(AF_INET, SOCK_STREAM, 0);
+
+	// SO_REUSEADDR 옵션 설정
+	int opt = 1;
+	if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+		utils::error_handling("setsockopt(SO_REUSEADDR) error");
+	}
+	
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(port_);
