@@ -48,8 +48,8 @@ public class SlitherContext
 
     public void SetHeadPos(Vector2 pos)
     {
-        headObject.transform.position = pos;
         rootObject.transform.position = pos;
+        headObject.transform.position = pos;
     }
 
     public GameObject GetRootObject() { return rootObject; }
