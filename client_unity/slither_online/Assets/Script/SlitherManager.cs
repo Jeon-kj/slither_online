@@ -16,6 +16,12 @@ public class SlitherManager : MonoBehaviour
 
     public float space = 0.5f;
 
+    void LateUpdate()
+    {
+        foreach (var slither in slithers.Values)
+            slither.Render(Time.deltaTime);
+    }
+
     public void DisposeSlither()
     {
         slithers.Clear();
@@ -52,6 +58,7 @@ public class SlitherManager : MonoBehaviour
             Destroy(last);
             bodySegments.RemoveAt(bodySegments.Count - 1);
         }
+        slither.SyncBodyTargets();
     }
 
     // 커서 수 == 세그먼트 수 유지
@@ -96,7 +103,7 @@ public class SlitherManager : MonoBehaviour
 
         if (isLocalPlayer)
         {
-            gameManager.InitPlayer(slitherObj);
+            gameManager.InitPlayer(slitherObj, head);
             var reporter = context.GetHeadObject().AddComponent<CollisionReporter>();
             reporter.slitherManager = this;
         }
@@ -113,7 +120,7 @@ public class SlitherManager : MonoBehaviour
         if (path.Count == 0)
         {
             path.AddLast((newPos, 0f));
-            slither.SetHeadPos(newPos);
+            slither.SetHeadTarget(newPos);
             return;
         }
         var last = path.Last!.Value;
@@ -121,7 +128,7 @@ public class SlitherManager : MonoBehaviour
         if (d <= 0.0) return;          // 정지/노이즈면 스킵 가능
 
         path.AddLast((newPos, last.cumLen + d));   // 누적 길이 추가
-        slither.SetHeadPos(newPos);
+        slither.SetHeadTarget(newPos);
     }
 
     int TrimToPhysicalLen(SlitherContext slither, float physicalLen)
@@ -154,8 +161,6 @@ public class SlitherManager : MonoBehaviour
     {
         LinkedList<(Vector2 pos, float cumLen)> path = slither.GetPath();
         List<LinkedListNode<(Vector2 pos, float cumLen)>> cursors = slither.GetCursors();
-        List<GameObject> bodySegments = slither.GetBodySegments();
-
         var lastNode = path.Last!;
         float headCumLen = lastNode.Value.cumLen;
 
@@ -168,7 +173,7 @@ public class SlitherManager : MonoBehaviour
             node = node.Next!;
         cursors[i] = node;
 
-        bodySegments[i].transform.position = node.Value.pos;
+        slither.SetBodyTarget(i, node.Value.pos);
     }
 
     public void UpdateSlitherPos(MovePayload payload)
@@ -258,9 +263,6 @@ public class SlitherManager : MonoBehaviour
         if (!ContainsId(payload.id)) return;
 
         SlitherContext slither = GetSlither(payload.id);
-        GameObject headObj = slither.GetHeadObject();
-
-        var deg = payload.angle * Mathf.Rad2Deg;
-        headObj.transform.rotation = Quaternion.Euler(0f, 0f, deg);
+        slither.SetHeadAngleTarget(payload.angle * Mathf.Rad2Deg);
     }
 }

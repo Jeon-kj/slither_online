@@ -9,6 +9,10 @@ public class SlitherContext
     private Transform bodyGroup;              // BodyGroup 오브젝트 (rootObject의 자식)
     private List<GameObject> bodySegments;
     private int bodyLen;
+    private Vector2 targetHeadPos;
+    private float targetHeadAngle;
+    private readonly List<Vector2> targetBodyPositions = new List<Vector2>();
+    private const float PositionSmoothing = 20f;
 
     // pos : 수신받은 head의 좌표를 저장(head의 이동경로)
     // cumLen(cumulativeSum) : cumPath[i] = headPath[0]->headPath[i]까지의 누적길이
@@ -33,6 +37,9 @@ public class SlitherContext
         this.headObject = head;
         this.bodyGroup = bodyGroup;
         SetBodyLen(bodyLen);
+        targetHeadPos = spawnPos;
+        targetHeadAngle = head.transform.eulerAngles.z;
+        targetBodyPositions.Clear();
 
         bodySegments.Clear();
         path.Clear();
@@ -46,10 +53,39 @@ public class SlitherContext
         }
     }
 
-    public void SetHeadPos(Vector2 pos)
+    public void SetHeadTarget(Vector2 pos) { targetHeadPos = pos; }
+
+    public void SetHeadAngleTarget(float angleDegrees) { targetHeadAngle = angleDegrees; }
+
+    public void SyncBodyTargets()
     {
-        rootObject.transform.position = pos;
-        headObject.transform.position = pos;
+        while (targetBodyPositions.Count < bodySegments.Count)
+            targetBodyPositions.Add(bodySegments[targetBodyPositions.Count].transform.position);
+        if (targetBodyPositions.Count > bodySegments.Count)
+            targetBodyPositions.RemoveRange(bodySegments.Count, targetBodyPositions.Count - bodySegments.Count);
+    }
+
+    public void SetBodyTarget(int index, Vector2 pos) { targetBodyPositions[index] = pos; }
+
+    public void Render(float deltaTime)
+    {
+        float blend = 1f - Mathf.Exp(-PositionSmoothing * deltaTime);
+        Vector3 previousRootPos = rootObject.transform.position;
+        Vector2 headPos = Vector2.Lerp(headObject.transform.position, targetHeadPos, blend);
+        rootObject.transform.position = headPos;
+        headObject.transform.position = headPos;
+        headObject.transform.rotation = Quaternion.Euler(0f, 0f,
+            Mathf.LerpAngle(headObject.transform.eulerAngles.z, targetHeadAngle, blend));
+
+        // Moving the parent also moves its children. Remove that displacement
+        // before interpolating each body's previous world position.
+        Vector3 rootDelta = rootObject.transform.position - previousRootPos;
+        for (int i = 0; i < bodySegments.Count; i++)
+        {
+            Transform segment = bodySegments[i].transform;
+            Vector2 previousPos = segment.position - rootDelta;
+            segment.position = Vector2.Lerp(previousPos, targetBodyPositions[i], blend);
+        }
     }
 
     public GameObject GetRootObject() { return rootObject; }

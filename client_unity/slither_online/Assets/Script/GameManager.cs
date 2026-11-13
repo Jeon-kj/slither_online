@@ -23,10 +23,10 @@ public class GameManager : MonoBehaviour
 
     public int GetLocalPlayerId() { return localPlayerId; }
 
-    public void InitPlayer(GameObject slither)
+    public void InitPlayer(GameObject slither, Transform head)
     {
         slitherMove.SetSlither(slither.transform);
-        cameraFollow.SetTarget(slither.transform);
+        cameraFollow.SetTarget(head);
     }
 
     public bool GetJoinStatus() { return (localPlayerId != -1); }
