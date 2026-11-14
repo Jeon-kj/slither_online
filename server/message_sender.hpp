@@ -19,7 +19,7 @@ namespace message_sender {
 		ServerContext& ctx
 	);
 
-	void send_pos(int fd, ServerContext& ctx);
+	void send_pos(ServerContext& ctx);
 
 	void send_chat(int fd, const std::string& body, ServerContext& ctx);
 

@@ -80,16 +80,18 @@ void message_sender::send_player_left_locked(int fd, const std::string& body, Se
 	}
 }
 
-void message_sender::send_pos(int fd, ServerContext& ctx){
+void message_sender::send_pos(ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_sender::send_pos]");
 	// 지금 현재의 위치를 전송. (즉, 움직임 처리 함수 호출 이후에 호출해야함.)
 
 	json positions = json::array();
+	std::vector<int> recipients;
 	{
-		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
+		// 호출부의 서버 락 유지
 		for(auto client_fd : ctx.client_fds){
 			int client_id = ctx.fd_to_id[client_fd];
 			ClientContext& client = ctx.client_contexts[client_id];
+			if (client.activation_flag) recipients.push_back(client_fd);
 
 			positions.push_back({
 				{"id", client.id},
@@ -100,11 +102,13 @@ void message_sender::send_pos(int fd, ServerContext& ctx){
 		}		
 	}
 
+	if (recipients.empty()) return;
+
 	json wrapper;
 	wrapper["posPayloads"] = positions;
 	std::string body = wrapper.dump();
-	{
-		//std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	// 전체 수신자에게 동일한 위치 JSON 재사용
+	for (int fd : recipients) {
 		utils::send_queue(fd, MSG_POS, body, ctx);
 	}	
 }

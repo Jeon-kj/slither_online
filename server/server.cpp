@@ -258,6 +258,10 @@ void Server::main_loop(){
 	};
 
 	auto game_loop = [&](){
+		using Clock = std::chrono::steady_clock;
+		const auto tick_interval = std::chrono::duration_cast<Clock::duration>(
+			std::chrono::duration<double>(GameConfig::DELTA_TIME));
+		auto next_tick = Clock::now();
 		while(running_){
 			{
 				dbg_tag("LOCK", "[game_loop] server_mutex_ 시도");	
@@ -304,17 +308,7 @@ void Server::main_loop(){
 						slither_manager::kill_slither_locked(dead_id, ctx_);
 					}
 					
-					for(auto client_fd: ctx_.client_fds){
-						auto it = ctx_.fd_to_id.find(client_fd);
-						if (it == ctx_.fd_to_id.end()) return;
-						int client_id = it->second;
-
-						auto itc = ctx_.client_contexts.find(client_id);
-						if (itc == ctx_.client_contexts.end()) return;
-						
-						if(!itc->second.activation_flag) continue;
-						message_sender::send_pos(client_fd, ctx_);
-					}			
+					message_sender::send_pos(ctx_);
 				}
 				else{
 					dbg_tag("SLITHER_MOVE", "[game_loop] 대기 중 - 클라이언트 없음");
@@ -329,7 +323,12 @@ void Server::main_loop(){
 				// food spawn logic
 				ctx_.food_manager.spawn_food_random(ctx_);
 			}			
-			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			// 처리 시간을 포함한 고정 틱 간격
+			next_tick += tick_interval;
+			const auto now = Clock::now();
+			// 처리 초과 시 밀린 틱의 연속 실행 방지
+			if (next_tick < now) next_tick = now;
+			std::this_thread::sleep_until(next_tick);
 		}
 	};
 
