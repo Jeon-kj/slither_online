@@ -190,7 +190,7 @@ void Server::handle_write_locked(int fd){
 
 	while (!client.send_queue.empty()) {
 		auto& msg = client.send_queue.front();
-		ssize_t sent = send(fd, msg.data(), msg.size(), 0);
+		ssize_t sent = send(fd, msg.data(), msg.size(), MSG_NOSIGNAL);
 		if (sent < 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				// 버퍼 꽉 찼음. 다음 EPOLLOUT을 기다림
