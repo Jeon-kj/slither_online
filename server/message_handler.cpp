@@ -8,6 +8,8 @@
 #include "game_config.hpp"
 
 #include <arpa/inet.h>
+#include <cmath>
+#include <limits>
 #include <string>
 
 using json = nlohmann::json;
@@ -45,7 +47,7 @@ void message_handler::handle_message(
 	int id, 
 	int32_t type, 
 	const std::string& body, 
-	ServerContext& ctx)
+	ServerContext& ctx) try
 {
 	dbg_tag("SEQUENCE", "[message_handler::handle_message]");
 	switch (type)
@@ -83,6 +85,10 @@ void message_handler::handle_message(
 			message_handler::handle_boost_status(id, body, ctx);
 			break;
 	}
+}
+catch (const json::exception& e) {
+	std::cerr << "[handle_message] Invalid JSON: id=" << id
+		<< " type=" << type << " " << e.what() << std::endl;
 }
 
 void message_handler::handle_player_join(
@@ -140,9 +146,20 @@ void message_handler::handle_pos(const std::string& body){
 
 void message_handler::handle_angle(int id, const std::string& body, ServerContext& ctx){
 	dbg_tag("ANGLE", "[message_handler::handle_angle]");
-	// {"angle": "string(float)"}
+
+	// {"angle": 숫자} — 유한한 float 범위
 	json j = json::parse(body);
-	float angle = j["angle"];
+	if (!j.is_object()) return;
+
+	auto it = j.find("angle");
+	if (it == j.end() || !it->is_number()) return;
+
+	double value = it->get<double>();
+	if (!std::isfinite(value) ||
+		value < -std::numeric_limits<float>::max() ||
+		value > std::numeric_limits<float>::max()) return;
+
+	float angle = static_cast<float>(value);
 	
 	std::lock_guard<std::mutex> lock(ctx.server_mutex);
 	ctx.client_contexts[id].angle = angle;
@@ -247,8 +264,13 @@ void message_handler::handle_boost_status(int id, const std::string& body, Serve
 	}*/
 
 	json j = json::parse(body);
+	if (!j.is_object()) return;
+
+	auto it = j.find("boostStatus");
+	if (it == j.end() || !it->is_boolean()) return;
+
 	int slither_id = id;
-	bool boost_status = j["boostStatus"];
+	bool boost_status = it->get<bool>();
 
 	ctx.client_contexts[slither_id].boost_status = boost_status;
 }
