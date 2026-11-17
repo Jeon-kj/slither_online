@@ -1,5 +1,6 @@
 #include "utils.hpp"
 #include "debug.hpp"
+#include "game_config.hpp"
 
 #include <iostream>
 #include <fcntl.h>
@@ -87,7 +88,24 @@ bool utils::modify_epoll_events(int epoll_fd, ClientContext& client, uint32_t ev
 // PRECONDITION: caller must hold ctx.server_mutex.
 void utils::send_queue(int fd, int32_t type, const std::string& body, ServerContext& ctx){
 	dbg_tag("SEND", "[utils::send_queue] type : ", type, ", body : ", body);
+	auto it = ctx.fd_to_id.find(fd);
+	if (it == ctx.fd_to_id.end()) return;
+	auto itc = ctx.client_contexts.find(it->second);
+	if (itc == ctx.client_contexts.end()) return;
+	ClientContext& client = itc->second;
+	if (client.closing || client.send_queue_overflow || client.fd < 0) return;
+
+	constexpr std::size_t header_size = sizeof(int32_t) * 2;
+	const std::size_t remaining = GameConfig::MAX_SEND_QUEUE_BYTES - client.send_queue_bytes;
+	if (remaining < header_size || body.size() > remaining - header_size) {
+		// 순회 종료 후 연결 정리 예약
+		client.send_queue_overflow = true;
+		std::cout << "Send queue limit exceeded: " << fd << std::endl;
+		return;
+	}
+
 	std::vector<char> packet;
+	packet.reserve(header_size + body.size());
 
 	int32_t type_net = htonl(type);
 	int32_t len_net = htonl(body.size());
@@ -104,9 +122,9 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 		body.begin(),
 		body.end());
 
-	int client_id = ctx.fd_to_id[fd];
-	ClientContext& client = ctx.client_contexts[client_id];
-	client.send_queue.push_back(packet);
+	const std::size_t packet_size = packet.size();
+	client.send_queue.push_back(std::move(packet));
+	client.send_queue_bytes += packet_size;
 	utils::modify_epoll_events(ctx.server()->get_epoll_fd(), client, EPOLLIN | EPOLLOUT, *ctx.server());
 }
 

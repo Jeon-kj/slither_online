@@ -207,6 +207,8 @@ void Server::handle_write_locked(int fd){
 			}
 		}
 
+		client.send_queue_bytes -= static_cast<std::size_t>(sent);
+
 		if (sent < (ssize_t)msg.size()) {
 			// 아직 덜 보낸 데이터가 남았음
 			// 덜 보낸 부분으로 msg를 잘라야 함
@@ -326,6 +328,18 @@ void Server::main_loop(){
 
 				// food spawn logic
 				ctx_.food_manager.spawn_food_random(ctx_);
+
+				// 클라이언트 순회 종료 후 송신 상한 초과 연결 정리
+				std::vector<std::pair<int, int>> overflow_clients;
+				for (const auto& [id, client] : ctx_.client_contexts) {
+					if (client.send_queue_overflow) overflow_clients.emplace_back(client.fd, id);
+				}
+				for (const auto& [fd, id] : overflow_clients) {
+					disconnect_client_locked(fd);
+				}
+				for (const auto& [fd, id] : overflow_clients) {
+					message_sender::send_player_left_locked(fd, "{\"id\":" + std::to_string(id) + "}", ctx_);
+				}
 			}			
 			// 처리 시간을 포함한 고정 틱 간격
 			next_tick += tick_interval;

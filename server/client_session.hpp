@@ -6,6 +6,7 @@
 #include <mutex>
 #include <deque>
 #include <list>
+#include <cstddef>
 
 struct SlitherPath{
 	Vector2 pos;
@@ -33,6 +34,8 @@ struct ClientContext{
 	// 송수신
 	std::vector<char> recv_buffer;
 	std::deque<std::vector<char>> send_queue;
+	std::size_t send_queue_bytes = 0;
+	bool send_queue_overflow = false;
 
 	// object 관리
 	Vector2 head;
