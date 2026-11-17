@@ -1,7 +1,11 @@
 #pragma once
+#include <cstddef>
 
 struct GameConfig {
     static constexpr int MAX_EVENTS = 10;
+
+    // 클라이언트별 미송신 데이터 상한
+    static constexpr std::size_t MAX_SEND_QUEUE_BYTES = 1024 * 1024;
 
     static constexpr float MAP_WIDTH = 100.0f;
     static constexpr float MAP_HEIGHT = 100.0f;
