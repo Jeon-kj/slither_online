@@ -74,7 +74,9 @@ void message_sender::send_player_left(int fd, const std::string& body, ServerCon
 // PRECONDITION: caller must hold ctx.server_mutex.
 void message_sender::send_player_left_locked(int fd, const std::string& body, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_sender::send_player_left]");
-	for(auto client_fd : ctx.client_fds){
+	// 전송 실패에 따른 연결 목록 변경 대비
+	const auto recipients = ctx.client_fds;
+	for(auto client_fd : recipients){
 		if(client_fd == fd) continue;
 		utils::send_queue(client_fd, MSG_PLAYER_LEFT, body, ctx);
 	}

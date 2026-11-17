@@ -47,7 +47,6 @@ bool utils::modify_epoll_events(int epoll_fd, ClientContext& client, uint32_t ev
         } else {
             int e = errno;
             dbg_tag("EPOLL", "ADD fail fd=", client.fd," errno=", e," msg=", std::strerror(e));
-            client.closing = true;
             server.disconnect_client_locked(client.fd);
             return false;
         }
@@ -71,14 +70,12 @@ bool utils::modify_epoll_events(int epoll_fd, ClientContext& client, uint32_t ev
         } else {
             // 복구 실패
             dbg_tag("EPOLL", "ADD recover fail fd=", client.fd, " errno=", errno, " msg=", std::strerror(errno));
-            client.closing = true; 
             server.disconnect_client_locked(client.fd);
             return false;
         }
     } else {
         // EINVAL, EPERM, EBADF 등
         dbg_tag("EPOLL", "MOD fail fd=", client.fd, " errno=", e, " msg=", std::strerror(e));
-        client.closing = true;
         server.disconnect_client_locked(client.fd);
         return false;
     }
@@ -104,8 +101,14 @@ void utils::send_queue(int fd, int32_t type, const std::string& body, ServerCont
 		body.begin(),
 		body.end());
 
-	int client_id = ctx.fd_to_id[fd];
-	ClientContext& client = ctx.client_contexts[client_id];
+	auto it = ctx.fd_to_id.find(fd);
+	if (it == ctx.fd_to_id.end()) return;
+
+	auto itc = ctx.client_contexts.find(it->second);
+	if (itc == ctx.client_contexts.end()) return;
+
+	ClientContext& client = itc->second;
+	if (client.closing || client.fd < 0) return;
 	client.send_queue.push_back(packet);
 	utils::modify_epoll_events(ctx.server()->get_epoll_fd(), client, EPOLLIN | EPOLLOUT, *ctx.server());
 }

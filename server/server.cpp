@@ -7,6 +7,7 @@
 #include "game_config.hpp"
 #include "food_manager.hpp"
 #include "collision_manager.hpp"
+#include "json.hpp"
 
 #include <iostream>
 #include <unistd.h>
@@ -377,6 +378,8 @@ void Server::disconnect_client_locked(int fd){
         return;
     }
 
+	bool was_active = client.activation_flag;
+
 	client.closing = true;	// 먼저 닫힘 표시
     int cfd = client.fd;	// 로컬로 보관(아래에서 fd=-1로 바꿀 예정)
 
@@ -396,6 +399,11 @@ void Server::disconnect_client_locked(int fd){
     ctx_.fd_to_id.erase(fd);
     utils::erase_from_vector(ctx_.client_fds, fd);
     ctx_.client_contexts.erase(itc);
+
+    if (was_active) {
+        nlohmann::json body = {{"id", client_id}};
+        message_sender::send_player_left_locked(cfd, body.dump(), ctx_);
+    }
 
     std::cout << "Client disconnected: " << cfd << std::endl;
 }

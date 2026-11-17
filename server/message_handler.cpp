@@ -133,10 +133,8 @@ void message_handler::handle_player_left(
 	ServerContext& ctx)
 {
 	dbg_tag("SEQUENCE", "[message_handler::handle_player_left]");
-	// 다른 클라이언트들에게 해당 클라이언트의 id를 전송.
-	// client_fds와 client_contexts에서 해당 데이터를 삭제 (Server::disconnect_client(fd))
+	// 연결 종료와 제거 알림의 공통 처리
 	int fd = ctx.client_contexts[id].fd;
-	message_sender::send_player_left(fd, body, ctx);
 	ctx.server()->disconnect_client(fd);
 }
 
