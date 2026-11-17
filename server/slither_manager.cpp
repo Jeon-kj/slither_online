@@ -150,14 +150,6 @@ void slither_manager::kill_slither(int target_id, ServerContext& ctx){
 
 	int target_fd = ctx.client_contexts[target_id].fd;
 	ctx.server()->disconnect_client(target_fd);
-	// 사용자들에게 Slither 제거 메시지 전송
-	json j;
-	{
-		std::lock_guard<std::mutex> lock(ctx.server_mutex);
-		j["id"]=target_id;
-	}
-
-	message_sender::send_player_left(target_fd, j.dump(), ctx);
 }
 
 // PRECONDITION: caller must hold ctx.server_mutex.
@@ -168,9 +160,4 @@ void slither_manager::kill_slither_locked(int target_id, ServerContext& ctx){
 
 	int target_fd = ctx.client_contexts[target_id].fd;
 	ctx.server()->disconnect_client_locked(target_fd);
-	// 사용자들에게 Slither 제거 메시지 전송
-	json j;
-	j["id"]=target_id;
-
-	message_sender::send_player_left_locked(target_fd, j.dump(), ctx);
 }

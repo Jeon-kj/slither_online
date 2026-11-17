@@ -48,7 +48,6 @@ bool utils::modify_epoll_events(int epoll_fd, ClientContext& client, uint32_t ev
         } else {
             int e = errno;
             dbg_tag("EPOLL", "ADD fail fd=", client.fd," errno=", e," msg=", std::strerror(e));
-            client.closing = true;
             server.disconnect_client_locked(client.fd);
             return false;
         }
@@ -72,14 +71,12 @@ bool utils::modify_epoll_events(int epoll_fd, ClientContext& client, uint32_t ev
         } else {
             // 복구 실패
             dbg_tag("EPOLL", "ADD recover fail fd=", client.fd, " errno=", errno, " msg=", std::strerror(errno));
-            client.closing = true; 
             server.disconnect_client_locked(client.fd);
             return false;
         }
     } else {
         // EINVAL, EPERM, EBADF 등
         dbg_tag("EPOLL", "MOD fail fd=", client.fd, " errno=", e, " msg=", std::strerror(e));
-        client.closing = true;
         server.disconnect_client_locked(client.fd);
         return false;
     }
