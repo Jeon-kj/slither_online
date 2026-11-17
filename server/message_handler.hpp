@@ -2,7 +2,13 @@
 #include "server.hpp"
 
 namespace message_handler {	
-	bool extract_message(int id, int32_t& type, std::string& body, ServerContext& ctx);
+	enum class ExtractResult {
+		Complete,
+		NeedMoreData,
+		InvalidMessage
+	};
+
+	ExtractResult extract_message(int id, int32_t& type, std::string& body, ServerContext& ctx);
 	
 	void handle_message(
 		Server& server,

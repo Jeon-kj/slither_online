@@ -144,17 +144,21 @@ void Server::handle_read(int fd){
 			int32_t type;
 			std::string body;
 			while(true) {
-				bool loop_check;
+				message_handler::ExtractResult result;
 				{
 					std::lock_guard<std::mutex> lock(ctx_.server_mutex);
 					auto it = ctx_.fd_to_id.find(fd);
                     if (it == ctx_.fd_to_id.end()) break;
 					int client_id = it->second;
 
-					loop_check = message_handler::extract_message(client_id, type, body, ctx_);
+					result = message_handler::extract_message(client_id, type, body, ctx_);
+					if (result == message_handler::ExtractResult::InvalidMessage) {
+						disconnect_client_locked(fd);
+						return;
+					}
 				}
 
-				if(!loop_check) break;
+				if (result == message_handler::ExtractResult::NeedMoreData) break;
 
 				message_handler::handle_message(*this, fd, type, body, ctx_);
 			}

@@ -14,14 +14,14 @@
 
 using json = nlohmann::json;
 
-bool message_handler::extract_message(int id, int32_t& type, std::string& body, ServerContext& ctx){
+message_handler::ExtractResult message_handler::extract_message(int id, int32_t& type, std::string& body, ServerContext& ctx){
 	dbg_tag("SEQUENCE", "[message_handler::extract_message] id : ", id);
 	ClientContext& client = ctx.client_contexts[id];
 	auto& buffer = client.recv_buffer;
 	int32_t body_len;
 	int32_t header_len = sizeof(type)+sizeof(body_len);
 
-	if(buffer.size() < header_len) return false;
+	if(buffer.size() < header_len) return ExtractResult::NeedMoreData;
 
 	memcpy(&type, buffer.data(), sizeof(type));
 	type = ntohl(type);
@@ -31,14 +31,14 @@ bool message_handler::extract_message(int id, int32_t& type, std::string& body, 
 
 	if (body_len < 0 || body_len > 10000) {
 		std::cerr << "[extract_message] Invalid body_len: " << body_len << std::endl;
-		return false;
+		return ExtractResult::InvalidMessage;
 	}
 
-	if(buffer.size() < header_len+body_len) return false;
+	if(buffer.size() < header_len+body_len) return ExtractResult::NeedMoreData;
 
 	body.assign(buffer.begin()+header_len, buffer.begin()+header_len+body_len);
 	buffer.erase(buffer.begin(), buffer.begin()+header_len+body_len);
-    return true;
+    return ExtractResult::Complete;
 }
 
 // server.cpp의 handle_read에서 호출
