@@ -272,5 +272,9 @@ void message_handler::handle_boost_status(int id, const std::string& body, Serve
 	int slither_id = id;
 	bool boost_status = it->get<bool>();
 
-	ctx.client_contexts[slither_id].boost_status = boost_status;
+	std::lock_guard<std::mutex> lock(ctx.server_mutex);
+	auto client_it = ctx.client_contexts.find(slither_id);
+	if (client_it == ctx.client_contexts.end()) return;
+
+	client_it->second.boost_status = boost_status;
 }
